@@ -75,9 +75,9 @@ The Tunnel is built in UDP with source port 50000 and destination port 60000
 
               process                              process
                  |                                    |
-                 |               USER                 |
+                 |                USER                |
         --------------------                --------------------
-                 |              KERNEL                |
+                 |               KERNEL               |
              +--------+                          +--------+
              |  KTAP  |                          |  KTAP  |
              +--------+                          +--------+
