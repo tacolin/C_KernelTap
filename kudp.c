@@ -63,9 +63,9 @@ static int _processUdpRecvData(void* arg)
 
     while (!kthread_should_stop())
     {
-        // iov 跟 msg 一定要放在迴圈裡面
-        // 雖然乍看之下每次做的事都一樣
-        // 但提到迴圈外面，udp recv 的時候就會收到壞掉的資料... Orz
+        // if you put the iov and msg setup out of loop
+        // udp recv will get some wrong data .. ?
+        // i have no idea about that  XD
         iov.iov_base = kudp->buffer;
         iov.iov_len  = BUFFER_SIZE;
 
