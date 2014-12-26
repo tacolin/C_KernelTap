@@ -71,6 +71,7 @@ The Tunnel is built in UDP with source port 50000 and destination port 60000
 
 
              COMPUTER A                           COMPUTER B
+        192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
 
               process                              process
                  |                                    |
