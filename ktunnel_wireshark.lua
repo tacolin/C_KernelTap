@@ -13,5 +13,5 @@ do
     end
 
     local udp_table = DissectorTable.get("udp.port")
-    udp_table:add(60000, ktun_proto)
+    udp_table:add(50000, ktun_proto)
 end
