@@ -9,7 +9,7 @@ Only the following packets can be passed in the TAP tunnel:
     - IPV4 TCP packets
     - IPV4 UDP packets
 
-The Tunnel is built in UDP with source port 50000 and destination port 60000
+The Tunnel is built in UDP with source port 50000 = destination port
 
 ===============================================================================
 
