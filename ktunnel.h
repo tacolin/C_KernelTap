@@ -29,8 +29,7 @@
 #define TAP_IF_IP       "10.10.10.1"
 #define TAP_IF_NETMASK  "255.255.255.0"
 #define DST_REAL_IP     "192.168.200.150"
-#define TUNNEL_SRC_PORT 50000
-#define TUNNEL_DST_PORT 60000
+#define TUNNEL_PORT     50000
 
 #define BUFFER_SIZE 2048
 #define IPADDR_SIZE 20
@@ -77,6 +76,6 @@ int  ktap_write(void* data, int dataLen);
 //      Function Declarations: Kernel UDP (ktap)
 //
 //////////////////////////////////////////////////////////////////////////////
-int  kudp_init(char* dstip, int srcport, int dstport);
+int  kudp_init(char* dstip, int tunnelport);
 void kudp_uninit(void);
 int  kudp_send(void* data, int dataLen);

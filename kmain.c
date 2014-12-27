@@ -1,13 +1,3 @@
-/******************************************************************************
-*   Reference:
-*   (1) User Space TUN Example
-*   http://neokentblog.blogspot.tw/2014/05/linux-virtual-interface-tuntap.html
-*
-*   (2) Kernel Space UDP Socket
-*   http://kernelnewbies.org/Simple_UDP_Server
-*
-******************************************************************************/
-
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Headers
@@ -68,7 +58,7 @@ static int __init ktunnel_init(void)
         goto _ERROR;
     }
 
-    ret = kudp_init(DST_REAL_IP, TUNNEL_SRC_PORT, TUNNEL_DST_PORT);
+    ret = kudp_init(DST_REAL_IP, TUNNEL_PORT);
     if (0 > ret)
     {
         dprint("kudp init failed");

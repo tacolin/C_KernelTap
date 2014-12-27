@@ -5,8 +5,6 @@
 //////////////////////////////////////////////////////////////////////////////
 #include "ktunnel.h"
 
-// http://kernelnewbies.org/Simple_UDP_Server
-
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Type Definitions
@@ -16,13 +14,11 @@ struct my_kudp
 {
     bool enable;
     char dstip[IPADDR_SIZE];
-    int  srcport;
-    int  dstport;
+    int  tunnelport;
 
     unsigned long convertedDstip;
 
-    struct socket* txsock;
-    struct socket* rxsock;
+    struct socket* sock;
 
     struct sockaddr_in txaddr;
     struct sockaddr_in rxaddr;
@@ -77,7 +73,7 @@ static int _processUdpRecvData(void* arg)
         msg.msg_iov        = &iov;
         msg.msg_iovlen     = 1;
 
-        readLen = sock_recvmsg(kudp->rxsock, &msg,
+        readLen = sock_recvmsg(kudp->sock, &msg,
                                BUFFER_SIZE, msg.msg_flags);
         if (0 >= readLen)
         {
@@ -99,60 +95,24 @@ static int _processUdpRecvData(void* arg)
 
 static int _setupUdpTx(struct my_kudp* kudp)
 {
-    int ret;
-
     if (NULL == kudp)
     {
         dprint("kudp is null");
         goto _ERROR;
     }
 
-    kudp->txsock = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (NULL == kudp->txsock)
-    {
-        dprint("my socket failed");
-        goto _ERROR;
-    }
-
-    if (NULL == kudp->txsock->ops)
-    {
-        dprint("socket ops is null");
-        goto _ERROR;
-    }
-
-    kudp->txaddr.sin_family = AF_INET;
-    kudp->txaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    kudp->txaddr.sin_port = htons(kudp->srcport);
-    ret = kudp->txsock->ops->bind(kudp->txsock,
-                                  (struct sockaddr*)&(kudp->txaddr),
-                                  sizeof(struct sockaddr));
-    if (0 > ret)
-    {
-        dprint("bind tx sock failed");
-        goto _ERROR;
-    }
-
     kudp->txaddr.sin_family = AF_INET;
     kudp->txaddr.sin_addr.s_addr = kudp->convertedDstip;
-    kudp->txaddr.sin_port = htons(kudp->dstport);
-
-    // ret = kudp->txsock->ops->connect(kudp->txsock,
-    //                                  (struct sockaddr*)&(kudp->txaddr),
-    //                                  sizeof(struct sockaddr), 0);
-    // if (0 > ret)
-    // {
-    //     dprint("connect tx sock failed");
-    //     goto _ERROR;
-    // }
+    kudp->txaddr.sin_port = htons(kudp->tunnelport);
 
     dprint("ok");
     return 0;
 
 _ERROR:
-    if (NULL ==  kudp->txsock)
+    if (NULL ==  kudp->sock)
     {
-        sock_release(kudp->txsock);
-        kudp->txsock = NULL;
+        sock_release(kudp->sock);
+        kudp->sock = NULL;
     }
     return -1;
 }
@@ -167,37 +127,11 @@ static int _setupUdpRx(struct my_kudp *kudp)
         goto _ERROR;
     }
 
-    kudp->rxsock = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (NULL == kudp->rxsock)
-    {
-        dprint("my socket failed");
-        goto _ERROR;
-    }
-
-    if (NULL == kudp->rxsock->ops)
-    {
-        dprint("socket ops is null");
-        goto _ERROR;
-    }
-
     kudp->rxaddr.sin_family = AF_INET;
     kudp->rxaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    kudp->rxaddr.sin_port = htons(kudp->dstport);
+    kudp->rxaddr.sin_port = htons(kudp->tunnelport);
 
-    kudp->rxsock = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (NULL == kudp->rxsock)
-    {
-        dprint("my socket failed");
-        goto _ERROR;
-    }
-
-    if (NULL == kudp->rxsock->ops)
-    {
-        dprint("socket ops is null");
-        goto _ERROR;
-    }
-
-    ret = kudp->rxsock->ops->bind(kudp->rxsock,
+    ret = kudp->sock->ops->bind(kudp->sock,
                                   (struct sockaddr*)&(kudp->rxaddr),
                                   sizeof(struct sockaddr));
     if (0 > ret)
@@ -210,10 +144,10 @@ static int _setupUdpRx(struct my_kudp *kudp)
     return 0;
 
 _ERROR:
-    if (NULL ==  kudp->rxsock)
+    if (NULL == kudp->sock)
     {
-        sock_release(kudp->rxsock);
-        kudp->rxsock = NULL;
+        sock_release(kudp->sock);
+        kudp->sock = NULL;
     }
     return -1;
 }
@@ -324,10 +258,10 @@ int kudp_send(void* data, int dataLen)
     msg.msg_iov        = &iov;
     msg.msg_iovlen     = 1;
 
-    return sock_sendmsg(_kudp.txsock, &msg, dataLen);
+    return sock_sendmsg(_kudp.sock, &msg, dataLen);
 }
 
-int kudp_init(char* dstip, int srcport, int dstport)
+int kudp_init(char* dstip, int tunnelport)
 {
     int ret = 0;
 
@@ -337,8 +271,7 @@ int kudp_init(char* dstip, int srcport, int dstport)
         goto _ERROR;
     }
 
-    _kudp.srcport = srcport;
-    _kudp.dstport = dstport;
+    _kudp.tunnelport = tunnelport;
 
     ret = my_inet_pton(AF_INET, dstip, &(_kudp.convertedDstip));
     if (0 > ret)
@@ -347,10 +280,16 @@ int kudp_init(char* dstip, int srcport, int dstport)
         goto _ERROR;
     }
 
-    ret = _setupUdpTx(&_kudp);
-    if (0 > ret)
+    _kudp.sock = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (NULL == _kudp.sock)
     {
-        dprint("setup udp tx failed");
+        dprint("my socket failed");
+        goto _ERROR;
+    }
+
+    if (NULL == _kudp.sock->ops)
+    {
+        dprint("socket ops is null");
         goto _ERROR;
     }
 
@@ -358,6 +297,13 @@ int kudp_init(char* dstip, int srcport, int dstport)
     if (0 > ret)
     {
         dprint("setup udp rx failed");
+        goto _ERROR;
+    }
+
+    ret = _setupUdpTx(&_kudp);
+    if (0 > ret)
+    {
+        dprint("setup udp tx failed");
         goto _ERROR;
     }
 
@@ -377,19 +323,15 @@ int kudp_init(char* dstip, int srcport, int dstport)
 
     _kudp.enable = true;
 
-    dprint("dstip = %s, dstport = %d", dstip, dstport);
+    dprint("dstip = %s, tunnelport = %d", dstip, tunnelport);
     dprint("ok");
     return 0;
 
 _ERROR:
     _kudp.enable = false;
-    if (_kudp.txsock)
+    if (_kudp.sock)
     {
-        sock_release(_kudp.txsock);
-    }
-    if (_kudp.rxsock)
-    {
-        sock_release(_kudp.rxsock);
+        sock_release(_kudp.sock);
     }
     return -1;
 }
@@ -405,8 +347,7 @@ void kudp_uninit(void)
     _stopUdpProcessThread(&_kudp);
     _uninitUdpProcessThread(&_kudp);
 
-    sock_release(_kudp.txsock);
-    sock_release(_kudp.rxsock);
+    sock_release(_kudp.sock);
 
     dprint("ok");
     return;
