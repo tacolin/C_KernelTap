@@ -13,6 +13,7 @@
 #include <uapi/linux/if.h>        // for struct ifreq
 #include <uapi/linux/if_tun.h>    // for TUN define value
 #include <uapi/linux/if_ether.h>  // for ETH_P_IP define value
+#include <uapi/linux/ip.h>        // for struct iphdr
 #include <uapi/linux/in.h>        // for IPPROTO_ICMP
 #include <linux/inet.h>           // for in4_pton
 #include <net/sock.h>             // for IPPROTO_IP, SOCK_DGRAM, AF_INET

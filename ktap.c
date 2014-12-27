@@ -251,8 +251,9 @@ _ERROR:
 
 static bool _isWantedData(void* data, int dataLen)
 {
-    u16 ethtype;
-    u8  ipproto;
+    struct ethhdr* ethhdr  = NULL;
+    struct iphdr*  iphdr   = NULL;
+    u16            ethtype = 0;
 
     if (NULL == data)
     {
@@ -266,23 +267,21 @@ static bool _isWantedData(void* data, int dataLen)
         return false;
     }
 
-    data += 12; // DST mac address + SRC mac address
-    ethtype = htons( *((u16*)data) );
-    data += 2;
+    ethhdr = (struct ethhdr*)data;
+    ethtype = ntohs(ethhdr->h_proto);
     if (ethtype == ETH_P_IP) // IP protocol
     {
-        data += 9;
-        ipproto = *((u8*)data);
-        data += 1;
-        if (ipproto == IPPROTO_ICMP) // ICMP
+        data += sizeof(struct ethhdr);
+        iphdr = (struct iphdr*)data;
+        if (iphdr->protocol == IPPROTO_ICMP) // ICMP
         {
             return true;
         }
-        else if (ipproto == IPPROTO_TCP)
+        else if (iphdr->protocol == IPPROTO_TCP)
         {
             return true;
         }
-        else if (ipproto == IPPROTO_UDP)
+        else if (iphdr->protocol == IPPROTO_UDP)
         {
             return true;
         }
