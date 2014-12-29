@@ -32,7 +32,7 @@
 #define TAP_IF_NETMASK  "255.255.255.0"
 #define DST_REAL_IP     "192.168.200.150"
 #define TUNNEL_PORT     50000
-#define TUNNEL_HDR_SIZE (sizeof(struct iphdr)+sizeof(struct udphdr))
+#define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+sizeof(struct iphdr)+sizeof(struct udphdr))
 
 #define BUFFER_SIZE 2048
 #define IPADDR_SIZE 20
