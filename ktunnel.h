@@ -23,20 +23,24 @@
 #include <linux/netpoll.h>        // for netpoll
 #include <linux/inetdevice.h>     // for struct in_device
 #include <net/route.h>            // for routing table
+#include <linux/netfilter_ipv4.h> // for netfilter
 
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Defined Values
 //
 //////////////////////////////////////////////////////////////////////////////
-// #define USE_NETPOLL_INSTEAD_OF_SOCKET (1)
-#define USE_NETPOLL_INSTEAD_OF_SOCKET (0)
+// #define USE_NETPOLL_INSTEAD_OF_TX_SOCKET (0)
+#define USE_NETPOLL_INSTEAD_OF_TX_SOCKET (1)
+
+// #define USE_NETFILTER_INSTEAD_OF_RX_SOCKET (0)
+#define USE_NETFILTER_INSTEAD_OF_RX_SOCKET (1)
 
 #define TAP_FILE_PATH   "/dev/net/tun"
 #define TAP_IF_NAME     "tap01"
 #define TAP_IF_IP       "10.10.10.1"
 #define TAP_IF_NETMASK  "255.255.255.0"
-#define DST_REAL_IP     "192.168.200.150"
+#define DST_REAL_IP     "192.168.200.200"
 #define TUNNEL_PORT     50000
 #define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+\
                          sizeof(struct iphdr)+\
@@ -99,3 +103,6 @@ int  kudp_send(void* data, int dataLen);
 //////////////////////////////////////////////////////////////////////////////
 bool knetpoll_getInfo(char* dstip, struct netpoll* np);
 int knetpoll_send(struct netpoll* np, void* data, int dataLen);
+
+int kfilter_init(void);
+void kfilter_uninit(void);

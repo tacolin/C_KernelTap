@@ -65,10 +65,18 @@ static int __init ktunnel_init(void)
         goto _ERROR;
     }
 
+    ret = kfilter_init();
+    if (0 > ret)
+    {
+        dprint("kfilter init failed");
+        goto _ERROR;
+    }
+
     dprint("ktuunel init ok");
     return 0;
 
 _ERROR:
+    kfilter_uninit();
     kudp_uninit();
     ktap_uninit();
     _unsetKernelFs();
@@ -77,6 +85,7 @@ _ERROR:
 
 static void __exit ktunnel_exit(void)
 {
+    kfilter_uninit();
     kudp_uninit();
     ktap_uninit();
     _unsetKernelFs();

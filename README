@@ -21,7 +21,9 @@ The Tunnel is built in UDP with source port 50000 = destination port
     kudp.c      - creating and using udp socket in kernel space.
     ktunnel.h   - linux heraders, defined values, macros,
                   type / function declarations.
+
     knetpoll.c  - using netpoll APIs to send udp packets.
+    kfilter.c   - netfilter hook function for receiving tunnel data.
 
     ktuunel_wireshark.lua - simple wireshark dissector for this project.
 
@@ -88,14 +90,15 @@ The Tunnel is built in UDP with source port 50000 = destination port
              |  KUDP  |--------------------------|  KUDP  |
              +--------+       send / recv        +--------+
 
+
 ===============================================================================
 
-[Netpoll mode]
+[Netpoll tx mode]
 
-    If you modify the ktunnel.h and set USE_NETPOLL_INSTEAD_OF_SOCKET to 1,
+    If you modify the ktunnel.h and set USE_NETPOLL_INSTEAD_OF_TX_SOCKET to 1,
     there will be some different with the above structure.
 
-    Netpoll mode will decrease a little CPU usage in sender COMPUTER.
+    Netpoll tx mode will decrease a little CPU usage in sender COMPUTER.
 
 
              COMPUTER A                           COMPUTER B
@@ -112,13 +115,73 @@ The Tunnel is built in UDP with source port 50000 = destination port
       |          | read                               ^  write   |
       ^          |                                    |          v
       |          v                                    |          |
-write |      +--------+                          +--------+      | read
-      ^      |KNETPOLL|----->------>------>------|  KUDP  |      v
-      |      +--------+ send                recv +--------+      |
+write |     +----------+                         +--------+      | read
+      ^     | KNETPOLL |---->------>------>------|  KUDP  |      v
+      |     +----------+  send              recv +--------+      |
       |                                                          |
+      |      +--------+                         +----------+     |
+      +--<---|  KUDP  |-----<------<------<-----| KNETPOLL |<----+
+             +--------+ recv               send +----------+
+
+
+===============================================================================
+
+[Netfilter rx mode]
+
+    If you modify the ktunnel.h and set USE_NETFILTER_INSTEAD_OF_RX_SOCKET to
+    1, there will be some different with the above structures.
+
+    Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
+
+             COMPUTER A                           COMPUTER B
+        192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
+
+              process                              process
+                 |                                    |
+                 |                USER                |
+        --------------------                --------------------
+                 |               KERNEL               |
+             +--------+                          +--------+
+      +----->|  KTAP  |                          |  KTAP  |--->--+
       |      +--------+                          +--------+      |
-      +--<---|  KUDP  |-----<------<------<------|KNETPOLL|<-----+
-             +--------+ recv                send +--------+
+      |          | read                               ^  write   |
+      ^          |                                    |          v
+      |          v                                    |          |
+write |      +--------+                          +---------+     | read
+      ^      |  KUDP  |----->------>------>------| KFILTER |     v
+      |      +--------+ send           netfilter +---------+     |
+      |                                                          |
+      |     +---------+                          +--------+      |
+      +--<--| KFILTER |-----<------<------<------|  KUDP  |<-----+
+            +---------+ netfilter           send +--------+
+
+
+===============================================================================
+
+[Netpoll tx mode + Netfilter rx mode]
+
+             COMPUTER A                           COMPUTER B
+        192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
+
+              process                              process
+                 |                                    |
+                 |                USER                |
+        --------------------                --------------------
+                 |               KERNEL               |
+             +--------+                          +--------+
+      +----->|  KTAP  |                          |  KTAP  |--->--+
+      |      +--------+                          +--------+      |
+      |          | read                               ^  write   |
+      ^          |                                    |          v
+      |          v                                    |          |
+write |     +----------+                         +---------+     | read
+      ^     | KNETPOLL |----->----->------>------| KFILTER |     v
+      |     +----------+ send          netfilter +---------+     |
+      |                                                          |
+      |     +---------+                         +----------+     |
+      +--<--| KFILTER |-----<------<------<-----| KNETPOLL |<----+
+            +---------+ netfilter          send +----------+
+
 
 ===============================================================================
 
@@ -151,13 +214,16 @@ write |      +--------+                          +--------+      | read
 
 [References]
 
-    1.User Space TUN Example
+    1.Example of TUN in User Space
     http://neokentblog.blogspot.tw/2014/05/linux-virtual-interface-tuntap.html
 
-    2.Kernel Space UDP Socket
+    2.Example of Kernel Space UDP Socket
     http://kernelnewbies.org/Simple_UDP_Server
 
-    3.Sending UDP by Netpoll APIs
+    3.Example of Sending UDP by Netpoll APIs
     http://goo.gl/is95GX
+
+    4.Example of Net Filter Hook
+    http://neokentblog.blogspot.tw/2014/06/netfilter-hook.html
 
 ===============================================================================

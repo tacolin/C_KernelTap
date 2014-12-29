@@ -374,7 +374,7 @@ static int _processTapReadData(void *arg)
 
         if (_isWantedData(ktap->buffer, readLen))
         {
-            if (USE_NETPOLL_INSTEAD_OF_SOCKET)
+            if (USE_NETPOLL_INSTEAD_OF_TX_SOCKET)
             {
                 struct netpoll np = {};
                 if (knetpoll_getInfo(DST_REAL_IP, &np))

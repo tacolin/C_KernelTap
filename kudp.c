@@ -87,6 +87,8 @@ static int _processUdpRecvData(void* arg)
             dprint("ktap write failed, writeLen = %d", writeLen);
             break;
         }
+
+        // dprint("writeLen = %d", writeLen);
     }
 
     dprint("over");

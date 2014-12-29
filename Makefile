@@ -1,7 +1,7 @@
 ifneq ($(KERNELRELEASE),)
 
 obj-m   := ktunnel.o
-ktunnel-objs := kmain.o ktap.o kudp.o ksyscall.o knetpoll.o
+ktunnel-objs := kmain.o ktap.o kudp.o ksyscall.o knetpoll.o kfilter.o
 
 else
 
