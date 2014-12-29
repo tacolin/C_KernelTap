@@ -14,6 +14,7 @@
 #include <uapi/linux/if_tun.h>    // for TUN define value
 #include <uapi/linux/if_ether.h>  // for ETH_P_IP define value
 #include <uapi/linux/ip.h>        // for struct iphdr
+#include <uapi/linux/udp.h>       // for struct udphdr
 #include <uapi/linux/in.h>        // for IPPROTO_ICMP
 #include <linux/inet.h>           // for in4_pton
 #include <net/sock.h>             // for IPPROTO_IP, SOCK_DGRAM, AF_INET
@@ -31,6 +32,7 @@
 #define TAP_IF_NETMASK  "255.255.255.0"
 #define DST_REAL_IP     "192.168.200.150"
 #define TUNNEL_PORT     50000
+#define TUNNEL_HDR_SIZE (sizeof(struct iphdr)+sizeof(struct udphdr))
 
 #define BUFFER_SIZE 2048
 #define IPADDR_SIZE 20

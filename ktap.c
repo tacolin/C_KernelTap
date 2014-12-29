@@ -135,6 +135,61 @@ _ERROR:
     return -1;
 }
 
+static int _setMtuSize(char* ifname)
+{
+    struct ifreq   ifr    = {};
+    long           ret    = 0;
+    struct socket* socket = NULL;
+
+    if (NULL == ifname)
+    {
+        dprint("ifname is null");
+        goto _ERROR;
+    }
+
+    strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+    ifr.ifr_addr.sa_family = AF_INET;
+
+    socket = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (NULL == socket)
+    {
+        dprint("my socket failed");
+        goto _ERROR;
+    }
+
+    ret = my_ioctl(socket->file, SIOCGIFMTU, (unsigned long)&ifr);
+    if (0 > ret)
+    {
+        dprint("my ioctl get mtu size failed");
+        goto _ERROR;
+    }
+
+    if (TUNNEL_HDR_SIZE >= ifr.ifr_mtu)
+    {
+        dprint("mtu size = %d is too small to use tunnel", ifr.ifr_mtu);
+        goto _ERROR;
+    }
+
+    ifr.ifr_mtu -= TUNNEL_HDR_SIZE;
+
+    ret = my_ioctl(socket->file, SIOCSIFMTU, (unsigned long)&ifr);
+    if (0 > ret)
+    {
+        dprint("my ioctl set mtu size failed");
+        goto _ERROR;
+    }
+
+    sock_release(socket);
+    return 0;
+
+_ERROR:
+    if (NULL != socket)
+    {
+        sock_release(socket);
+    }
+    return -1;
+}
+
 static int _setNetmask(char* ifname, char* netmask)
 {
     struct ifreq   ifr    = {};
@@ -476,6 +531,12 @@ int ktap_init(char* ifname, char* ipaddr, char* netmask)
     if (0 > _setNetmask(ifname, netmask))
     {
         dprint("tap set netmask failed");
+        goto _ERROR;
+    }
+
+    if (0 > _setMtuSize(ifname))
+    {
+        dprint("set mtu size failed");
         goto _ERROR;
     }
 
