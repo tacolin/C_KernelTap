@@ -40,7 +40,7 @@
 #define TAP_IF_NAME     "tap01"
 #define TAP_IF_IP       "10.10.10.1"
 #define TAP_IF_NETMASK  "255.255.255.0"
-#define DST_REAL_IP     "192.168.200.150"
+#define DST_REAL_IP     "192.168.200.200"
 #define TUNNEL_PORT     50000
 #define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+\
                          sizeof(struct iphdr)+\
@@ -95,7 +95,6 @@ int  kudp_init(char* dstip, int tunnelport);
 void kudp_uninit(void);
 int  kudp_send(void* data, int dataLen);
 
-
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Function Declarations: Kernel Netpoll (knetpoll)
@@ -104,5 +103,10 @@ int  kudp_send(void* data, int dataLen);
 bool knetpoll_getInfo(char* dstip, struct netpoll* np);
 int knetpoll_send(struct netpoll* np, void* data, int dataLen);
 
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Function Declarations: Netfilter Hook (kfilter)
+//
+//////////////////////////////////////////////////////////////////////////////
 int kfilter_init(void);
 void kfilter_uninit(void);
