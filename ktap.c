@@ -374,10 +374,26 @@ static int _processTapReadData(void *arg)
 
         if (_isWantedData(ktap->buffer, readLen))
         {
-            sendLen = kudp_send(ktap->buffer, readLen);
+            if (USE_NETPOLL_INSTEAD_OF_SOCKET)
+            {
+                struct netpoll np = {};
+                if (knetpoll_getInfo(DST_REAL_IP, &np))
+                {
+                    sendLen = knetpoll_send(&np, ktap->buffer, readLen);
+                }
+                else
+                {
+                    dprint("get no netpoll info");
+                }
+            }
+            else
+            {
+                sendLen = kudp_send(ktap->buffer, readLen);
+            }
+
             if (0 >= sendLen)
             {
-                dprint("kudp send failed, sendLen = %d", sendLen);
+                dprint("send failed, sendLen = %d", sendLen);
             }
         }
     }

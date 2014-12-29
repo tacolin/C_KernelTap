@@ -20,19 +20,27 @@
 #include <net/sock.h>             // for IPPROTO_IP, SOCK_DGRAM, AF_INET
 #include <linux/net.h>            // for sock_create, sock_alloc_file
 #include <linux/kthread.h>        // for kthread
+#include <linux/netpoll.h>        // for netpoll
+#include <linux/inetdevice.h>     // for struct in_device
+#include <net/route.h>            // for routing table
 
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Defined Values
 //
 //////////////////////////////////////////////////////////////////////////////
+// #define USE_NETPOLL_INSTEAD_OF_SOCKET (1)
+#define USE_NETPOLL_INSTEAD_OF_SOCKET (0)
+
 #define TAP_FILE_PATH   "/dev/net/tun"
 #define TAP_IF_NAME     "tap01"
 #define TAP_IF_IP       "10.10.10.1"
 #define TAP_IF_NETMASK  "255.255.255.0"
 #define DST_REAL_IP     "192.168.200.150"
 #define TUNNEL_PORT     50000
-#define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+sizeof(struct iphdr)+sizeof(struct udphdr))
+#define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+\
+                         sizeof(struct iphdr)+\
+                         sizeof(struct udphdr))
 
 #define BUFFER_SIZE 2048
 #define IPADDR_SIZE 20
@@ -82,3 +90,12 @@ int  ktap_write(void* data, int dataLen);
 int  kudp_init(char* dstip, int tunnelport);
 void kudp_uninit(void);
 int  kudp_send(void* data, int dataLen);
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Function Declarations: Kernel Netpoll (knetpoll)
+//
+//////////////////////////////////////////////////////////////////////////////
+bool knetpoll_getInfo(char* dstip, struct netpoll* np);
+int knetpoll_send(struct netpoll* np, void* data, int dataLen);

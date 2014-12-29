@@ -21,6 +21,7 @@ The Tunnel is built in UDP with source port 50000 = destination port
     kudp.c      - creating and using udp socket in kernel space.
     ktunnel.h   - linux heraders, defined values, macros,
                   type / function declarations.
+    knetpoll.c  - using netpoll APIs to send udp packets.
 
     ktuunel_wireshark.lua - simple wireshark dissector for this project.
 
@@ -87,6 +88,37 @@ The Tunnel is built in UDP with source port 50000 = destination port
              |  KUDP  |--------------------------|  KUDP  |
              +--------+       send / recv        +--------+
 
+===============================================================================
+
+[Netpoll mode]
+
+    If you modify the ktunnel.h and set USE_NETPOLL_INSTEAD_OF_SOCKET to 1,
+    there will be some different with the above structure.
+
+    Netpoll mode will decrease a little CPU usage in sender COMPUTER.
+
+
+             COMPUTER A                           COMPUTER B
+        192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
+
+              process                              process
+                 |                                    |
+                 |                USER                |
+        --------------------                --------------------
+                 |               KERNEL               |
+             +--------+                          +--------+
+      +----->|  KTAP  |                          |  KTAP  |--->--+
+      |      +--------+                          +--------+      |
+      |          | read                               ^  write   |
+      ^          |                                    |          v
+      |          v                                    |          |
+write |      +--------+                          +--------+      | read
+      ^      |KNETPOLL|----->------>------>------|  KUDP  |      v
+      |      +--------+ send                recv +--------+      |
+      |                                                          |
+      |      +--------+                          +--------+      |
+      +--<---|  KUDP  |-----<------<------<------|KNETPOLL|<-----+
+             +--------+ recv                send +--------+
 
 ===============================================================================
 
@@ -124,5 +156,8 @@ The Tunnel is built in UDP with source port 50000 = destination port
 
     2.Kernel Space UDP Socket
     http://kernelnewbies.org/Simple_UDP_Server
+
+    3.Sending UDP by Netpoll APIs
+    http://goo.gl/is95GX
 
 ===============================================================================
