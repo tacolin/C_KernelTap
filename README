@@ -72,6 +72,7 @@ The Tunnel is built in UDP with source port 50000 = destination port
     If you check packets in wireshark, you will see the ARP and ICMP packets
     encapsulated in the UDP Tunnel.
 
+    tag: v1.0
 
              COMPUTER A                           COMPUTER B
         192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
@@ -99,6 +100,8 @@ The Tunnel is built in UDP with source port 50000 = destination port
     there will be some different with the above structure.
 
     Netpoll tx mode will decrease a little CPU usage in sender COMPUTER.
+
+    tag: v2.0
 
 
              COMPUTER A                           COMPUTER B
@@ -132,6 +135,8 @@ write |     +----------+                         +--------+      | read
     1, there will be some different with the above structures.
 
     Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
+
+    tag: v3.0
 
              COMPUTER A                           COMPUTER B
         192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
