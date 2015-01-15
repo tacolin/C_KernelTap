@@ -16,7 +16,7 @@ struct my_kudp
     char dstip[IPADDR_SIZE];
     int  tunnelport;
 
-    unsigned long convertedDstip;
+    unsigned int convertedDstip;
 
     struct socket* sock;
 
