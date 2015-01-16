@@ -309,15 +309,15 @@ int kudp_init(char* dstip, int tunnelport, char* rxmode)
         goto _ERROR;
     }
 
+    ret = _setupUdpRx(&_kudp);
+    if (0 > ret)
+    {
+        dprint("setup udp rx failed");
+        goto _ERROR;
+    }
+
     if (0 == strcmp(rxmode, "udp"))
     {
-        ret = _setupUdpRx(&_kudp);
-        if (0 > ret)
-        {
-            dprint("setup udp rx failed");
-            goto _ERROR;
-        }
-
         ret = _initUdpProcessThread(&_kudp, _processUdpRecvData, SIGINT);
         if (0 > ret)
         {
