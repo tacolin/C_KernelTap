@@ -60,7 +60,7 @@ static bool _isWantedData(struct sk_buff *skb)
 
     srcport = ntohs(udph->source);
     dstport = ntohs(udph->dest);
-    if ((TUNNEL_PORT != srcport) || (TUNNEL_PORT != dstport))
+    if ((g_tunnelPort != srcport) || (g_tunnelPort != dstport))
     {
         return false;
     }
@@ -84,7 +84,7 @@ static unsigned int _processHookLocalIn(const struct nf_hook_ops *ops,
     //     goto _END;
     // }
 
-    if (USE_NETFILTER_INSTEAD_OF_RX_SOCKET && _isWantedData(skb))
+    if (_isWantedData(skb))
     {
         int dataLen = skb->len - sizeof(struct iphdr) - sizeof(struct udphdr);
         void* data = skb->data + sizeof(struct iphdr) + sizeof(struct udphdr);
@@ -113,9 +113,20 @@ _END:
 //      Functions
 //
 //////////////////////////////////////////////////////////////////////////////
-int kfilter_init(void)
+int kfilter_init(char* rxmode)
 {
     int ret;
+
+    if (NULL == rxmode)
+    {
+        dprint("rxmode is null");
+        goto _ERROR;
+    }
+
+    if (0 != strcmp(rxmode, "filter"))
+    {
+        return 0;
+    }
 
     _kfilter.hkop.pf = PF_INET;
     _kfilter.hkop.hooknum = NF_INET_LOCAL_IN;

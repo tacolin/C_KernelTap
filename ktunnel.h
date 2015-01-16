@@ -30,18 +30,7 @@
 //      Defined Values
 //
 //////////////////////////////////////////////////////////////////////////////
-// #define USE_NETPOLL_INSTEAD_OF_TX_SOCKET (0)
-#define USE_NETPOLL_INSTEAD_OF_TX_SOCKET (1)
-
-// #define USE_NETFILTER_INSTEAD_OF_RX_SOCKET (0)
-#define USE_NETFILTER_INSTEAD_OF_RX_SOCKET (1)
-
 #define TAP_FILE_PATH   "/dev/net/tun"
-#define TAP_IF_NAME     "tap01"
-#define TAP_IF_IP       "10.10.10.1"
-#define TAP_IF_NETMASK  "255.255.255.0"
-#define DST_REAL_IP     "192.168.200.150"
-#define TUNNEL_PORT     50000
 #define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+\
                          sizeof(struct iphdr)+\
                          sizeof(struct udphdr))
@@ -63,6 +52,14 @@
 //////////////////////////////////////////////////////////////////////////////
 typedef int (*my_threadFn)(void * data);
 
+extern char* g_ifname;
+extern char* g_ip;
+extern char* g_mask;
+extern char* g_dstRealip;
+extern int   g_tunnelPort;
+extern char* g_txmode;
+extern char* g_rxmode;
+
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Function Declarations: My System Calls (ksyscall)
@@ -82,7 +79,7 @@ void           my_close(void* fp);
 //      Function Declarations: Kernel TAP (ktap)
 //
 //////////////////////////////////////////////////////////////////////////////
-int  ktap_init(char* ifname, char* ipaddr, char* netmask);
+int ktap_init(char* ifname, char* ipaddr, char* netmask, char* txmode);
 void ktap_uninit(void);
 int  ktap_write(void* data, int dataLen);
 
@@ -91,7 +88,7 @@ int  ktap_write(void* data, int dataLen);
 //      Function Declarations: Kernel UDP (ktap)
 //
 //////////////////////////////////////////////////////////////////////////////
-int  kudp_init(char* dstip, int tunnelport);
+int  kudp_init(char* dstip, int tunnelport, char* rxmode);
 void kudp_uninit(void);
 int  kudp_send(void* data, int dataLen);
 
@@ -108,5 +105,5 @@ int knetpoll_send(struct netpoll* np, void* data, int dataLen);
 //      Function Declarations: Netfilter Hook (kfilter)
 //
 //////////////////////////////////////////////////////////////////////////////
-int kfilter_init(void);
+int kfilter_init(char* rxmode);
 void kfilter_uninit(void);

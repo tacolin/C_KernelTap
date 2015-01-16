@@ -218,7 +218,8 @@ static int _stopUdpProcessThread(struct my_kudp *kudp)
     if (NULL == kudp->processThread)
     {
         dprint("process thread is not initialized");
-        return -1;
+        return 0;
+        // return -1;
     }
 
     kill_pid(find_vpid(kudp->processThread->pid), kudp->interruptNum, 1);
@@ -263,13 +264,19 @@ int kudp_send(void* data, int dataLen)
     return sock_sendmsg(_kudp.sock, &msg, dataLen);
 }
 
-int kudp_init(char* dstip, int tunnelport)
+int kudp_init(char* dstip, int tunnelport, char* rxmode)
 {
     int ret = 0;
 
     if (NULL == dstip)
     {
         dprint("dst ip is null");
+        goto _ERROR;
+    }
+
+    if (NULL == rxmode)
+    {
+        dprint("rxmode is null");
         goto _ERROR;
     }
 
@@ -295,13 +302,6 @@ int kudp_init(char* dstip, int tunnelport)
         goto _ERROR;
     }
 
-    ret = _setupUdpRx(&_kudp);
-    if (0 > ret)
-    {
-        dprint("setup udp rx failed");
-        goto _ERROR;
-    }
-
     ret = _setupUdpTx(&_kudp);
     if (0 > ret)
     {
@@ -309,18 +309,28 @@ int kudp_init(char* dstip, int tunnelport)
         goto _ERROR;
     }
 
-    ret = _initUdpProcessThread(&_kudp, _processUdpRecvData, SIGINT);
-    if (0 > ret)
+    if (0 == strcmp(rxmode, "udp"))
     {
-        dprint("init udp process thread failed");
-        goto _ERROR;
-    }
+        ret = _setupUdpRx(&_kudp);
+        if (0 > ret)
+        {
+            dprint("setup udp rx failed");
+            goto _ERROR;
+        }
 
-    ret = _startUdpProcessThread(&_kudp);
-    if (0 > ret)
-    {
-        dprint("start udp process thread failed");
-        goto _ERROR;
+        ret = _initUdpProcessThread(&_kudp, _processUdpRecvData, SIGINT);
+        if (0 > ret)
+        {
+            dprint("init udp process thread failed");
+            goto _ERROR;
+        }
+
+        ret = _startUdpProcessThread(&_kudp);
+        if (0 > ret)
+        {
+            dprint("start udp process thread failed");
+            goto _ERROR;
+        }
     }
 
     _kudp.enable = true;

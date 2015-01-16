@@ -21,6 +21,8 @@ struct my_ktap
     struct task_struct* processThread;
     int interruptNum;
 
+    char txmode; // 'u' for udp, 'n' for netpoll
+
     unsigned char buffer[BUFFER_SIZE];
 };
 
@@ -374,10 +376,10 @@ static int _processTapReadData(void *arg)
 
         if (_isWantedData(ktap->buffer, readLen))
         {
-            if (USE_NETPOLL_INSTEAD_OF_TX_SOCKET)
+            if ('n' == ktap->txmode)
             {
                 struct netpoll np = {};
-                if (knetpoll_getInfo(DST_REAL_IP, &np))
+                if (knetpoll_getInfo(g_dstRealip, &np))
                 {
                     sendLen = knetpoll_send(&np, ktap->buffer, readLen);
                 }
@@ -505,7 +507,7 @@ int ktap_write(void* data, int dataLen)
     return my_write(_ktap.file, data, dataLen);
 }
 
-int ktap_init(char* ifname, char* ipaddr, char* netmask)
+int ktap_init(char* ifname, char* ipaddr, char* netmask, char* txmode)
 {
     int ret = 0;
 
@@ -515,21 +517,27 @@ int ktap_init(char* ifname, char* ipaddr, char* netmask)
         goto _ERROR;
     }
 
-    if (NULL == ipaddr)
-    {
-        dprint("ipaddr is null");
-        goto _ERROR;
-    }
-
-    if (NULL == netmask)
-    {
-        dprint("netmask is null");
-        goto _ERROR;
-    }
-
     strncpy(_ktap.ifname,  ifname,  IFNAMSIZ);
-    strncpy(_ktap.ipaddr,  ipaddr,  IPADDR_SIZE);
-    strncpy(_ktap.netmask, netmask, IPADDR_SIZE);
+
+    if (NULL == txmode)
+    {
+        dprint("txmode is null");
+        goto _ERROR;
+    }
+
+    if (0 == strcmp(txmode, "udp"))
+    {
+        _ktap.txmode = 'u';
+    }
+    else if (0 == strcmp(txmode, "netpoll"))
+    {
+        _ktap.txmode = 'n';
+    }
+    else
+    {
+        dprint("txmode is invalid = %s", txmode);
+        goto _ERROR;
+    }
 
     _ktap.file = _alloc(TAP_FILE_PATH, ifname, IFF_TAP | IFF_NO_PI);
     if (NULL == _ktap.file)
@@ -538,16 +546,24 @@ int ktap_init(char* ifname, char* ipaddr, char* netmask)
         goto _ERROR;
     }
 
-    if (0 > _setIpaddr(ifname, ipaddr))
+    if (NULL != ipaddr)
     {
-        dprint("tap set ip failed");
-        goto _ERROR;
+        strncpy(_ktap.ipaddr,  ipaddr,  IPADDR_SIZE);
+        if (0 > _setIpaddr(ifname, ipaddr))
+        {
+            dprint("tap set ip failed");
+            goto _ERROR;
+        }
     }
 
-    if (0 > _setNetmask(ifname, netmask))
+    if (NULL != netmask)
     {
-        dprint("tap set netmask failed");
-        goto _ERROR;
+        strncpy(_ktap.netmask, netmask, IPADDR_SIZE);
+        if (0 > _setNetmask(ifname, netmask))
+        {
+            dprint("tap set netmask failed");
+            goto _ERROR;
+        }
     }
 
     if (0 > _setMtuSize(ifname))

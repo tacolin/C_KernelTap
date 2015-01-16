@@ -19,10 +19,11 @@ extern struct neigh_table arp_tbl;
 //////////////////////////////////////////////////////////////////////////////
 bool knetpoll_getInfo(char* dstip, struct netpoll* np)
 {
-    struct rtable* routingTbl = NULL;
-    struct flowi4  fl4        = {};
-    struct neighbour* neigh   = NULL;
-    struct in_device* indev   = NULL;
+    struct rtable*    routingTbl = NULL;
+    struct flowi4     fl4        = {};
+    struct neighbour* neigh      = NULL;
+    struct in_device* indev      = NULL;
+
     int ret = 0;
 
     if (NULL == dstip)
@@ -39,7 +40,7 @@ bool knetpoll_getInfo(char* dstip, struct netpoll* np)
 
     fl4.flowi4_oif = 0;
     fl4.flowi4_tos = 0;
-    fl4.saddr = 0;
+    fl4.saddr      = 0;
     ret = my_inet_pton(AF_INET, dstip, &(fl4.daddr));
     if (0 > ret)
     {
@@ -74,10 +75,10 @@ bool knetpoll_getInfo(char* dstip, struct netpoll* np)
     }
 
     strlcpy(np->dev_name, routingTbl->dst.dev->name, IFNAMSIZ);
-    np->local_ip.ip = indev->ifa_list->ifa_local;
+    np->local_ip.ip  = indev->ifa_list->ifa_local;
     np->remote_ip.ip = fl4.daddr;
-    np->local_port = TUNNEL_PORT;
-    np->remote_port = TUNNEL_PORT;
+    np->local_port   = g_tunnelPort;
+    np->remote_port  = g_tunnelPort;
     memcpy(np->remote_mac, neigh->ha, ETH_ALEN);
 
     ret = netpoll_setup(np);
