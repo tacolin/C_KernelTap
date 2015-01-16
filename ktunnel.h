@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/version.h>
 
 #include <linux/fs.h>             // for flip_open, filp_close
 #include <linux/uaccess.h>        // for get_fs, get_ds, set_fs

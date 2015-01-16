@@ -68,28 +68,44 @@ static bool _isWantedData(struct sk_buff *skb)
     return true;
 }
 
-// static unsigned int _processHookLocalIn(unsigned int hook,
-//                                          struct sk_buff *skb,
-//                                          const struct net_device *in,
-//                                          const struct net_device *out,
-//                                          int (*okfn)(struct sk_buff*))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
+
 static unsigned int _processHookLocalIn(const struct nf_hook_ops *ops,
                                          struct sk_buff *skb,
                                          const struct net_device *in,
                                          const struct net_device *out,
                                          int (*okfn)(struct sk_buff*))
-{
-    // if (NULL == skb)
-    // {
-    //     goto _END;
-    // }
 
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+
+static unsigned int _processHookLocalIn(unsigned int hook,
+                                         struct sk_buff *skb,
+                                         const struct net_device *in,
+                                         const struct net_device *out,
+                                         int (*okfn)(struct sk_buff*))
+#else
+    // not support
+#endif
+{
     if (_isWantedData(skb))
     {
-        int dataLen = skb->len - sizeof(struct iphdr) - sizeof(struct udphdr);
-        void* data = skb->data + sizeof(struct iphdr) + sizeof(struct udphdr);
-        int writeLen;
+        int           dataLen  = 0;
+        void*         data     = NULL;
+        int           writeLen = 0;
+        struct iphdr* iph      = NULL;
+        int           iphLen   = 0;
         mm_segment_t oldfs;
+
+        iph = ip_hdr(skb);
+        if (NULL == iph)
+        {
+            goto _END;
+        }
+
+        iphLen = ntohs(iph->ihl) << 2;
+
+        dataLen = skb->len  - iphLen - sizeof(struct udphdr);
+        data    = skb->data + iphLen + sizeof(struct udphdr);
 
         // the netfilter hook function belongs another kerenel module (thread)
         // changing the kernel fs is necessary.
