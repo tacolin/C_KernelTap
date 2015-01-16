@@ -32,9 +32,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 #define TAP_FILE_PATH   "/dev/net/tun"
-#define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+\
-                         sizeof(struct iphdr)+\
-                         sizeof(struct udphdr))
+#define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+60+sizeof(struct udphdr))  // max ip hdr size
 
 #define BUFFER_SIZE 2048
 #define IPADDR_SIZE 20
