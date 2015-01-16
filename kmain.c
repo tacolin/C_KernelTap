@@ -27,14 +27,6 @@ int   g_tunnelPort = 50000;
 char* g_txmode     = "udp";
 char* g_rxmode     = "udp";
 
-module_param(g_ifname,    charp, S_IRUSR);
-module_param(g_ip,        charp, S_IRUSR);
-module_param(g_mask,      charp, S_IRUSR);
-module_param(g_dstRealip, charp, S_IRUSR);
-module_param(g_tunnelPort, int,  S_IRUSR);
-module_param(g_txmode,    charp, S_IRUSR);
-module_param(g_rxmode,    charp, S_IRUSR);
-
 static mm_segment_t _oldfs;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -95,7 +87,6 @@ static int __init ktunnel_init(void)
         dprint("module parameters check failed");
         goto _ERROR;
     }
-
     _showModuleParameters();
 
     ret = ktap_init(g_ifname, g_ip, g_mask, g_txmode);
@@ -145,5 +136,13 @@ static void __exit ktunnel_exit(void)
 }
 
 
-module_init( ktunnel_init );
-module_exit( ktunnel_exit );
+module_init(ktunnel_init);
+module_exit(ktunnel_exit);
+
+module_param(g_ifname,    charp, S_IRUSR);
+module_param(g_ip,        charp, S_IRUSR);
+module_param(g_mask,      charp, S_IRUSR);
+module_param(g_dstRealip, charp, S_IRUSR);
+module_param(g_tunnelPort, int,  S_IRUSR);
+module_param(g_txmode,    charp, S_IRUSR);
+module_param(g_rxmode,    charp, S_IRUSR);

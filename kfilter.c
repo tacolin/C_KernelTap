@@ -31,10 +31,10 @@ static struct my_filter _kfilter = {};
 //////////////////////////////////////////////////////////////////////////////
 static bool _isWantedData(struct sk_buff *skb)
 {
-    struct iphdr* iph = NULL;
+    struct iphdr* iph   = NULL;
     struct udphdr* udph = NULL;
-    u16 srcport = 0;
-    u16 dstport = 0;
+    u16 srcport         = 0;
+    u16 dstport         = 0;
 
     if (NULL == skb)
     {
@@ -60,6 +60,7 @@ static bool _isWantedData(struct sk_buff *skb)
 
     srcport = ntohs(udph->source);
     dstport = ntohs(udph->dest);
+
     if ((g_tunnelPort != srcport) || (g_tunnelPort != dstport))
     {
         return false;
@@ -102,8 +103,7 @@ static unsigned int _processHookLocalIn(unsigned int hook,
             goto _END;
         }
 
-        iphLen = iph->ihl << 2;
-
+        iphLen  = iph->ihl << 2;
         dataLen = skb->len  - iphLen - sizeof(struct udphdr);
         data    = skb->data + iphLen + sizeof(struct udphdr);
 
@@ -111,12 +111,16 @@ static unsigned int _processHookLocalIn(unsigned int hook,
         // changing the kernel fs is necessary.
         oldfs = get_fs();
         set_fs(get_ds());
+
         writeLen = ktap_write(data, dataLen);
+
         set_fs(oldfs);
+
         if (0 >= writeLen)
         {
             goto _END;
         }
+
         return NF_DROP;
     }
 
@@ -144,10 +148,10 @@ int kfilter_init(char* rxmode)
         return 0;
     }
 
-    _kfilter.hkop.pf = PF_INET;
-    _kfilter.hkop.hooknum = NF_INET_LOCAL_IN;
+    _kfilter.hkop.pf       = PF_INET;
+    _kfilter.hkop.hooknum  = NF_INET_LOCAL_IN;
     _kfilter.hkop.priority = NF_IP_PRI_FIRST;
-    _kfilter.hkop.hook = _processHookLocalIn;
+    _kfilter.hkop.hook     = _processHookLocalIn;
 
     ret = nf_register_hook(&(_kfilter.hkop));
     if (0 > ret)
@@ -172,6 +176,7 @@ void kfilter_uninit(void)
     {
         nf_unregister_hook(&(_kfilter.hkop));
         _kfilter.enable = false;
+
         dprint("ok");
     }
 

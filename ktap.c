@@ -17,9 +17,9 @@ struct my_ktap
     char ipaddr[IPADDR_SIZE];
     char netmask[IPADDR_SIZE];
 
-    struct file* file;
+    struct file*        file;
     struct task_struct* processThread;
-    int interruptNum;
+    int                 interruptNum;
 
     char txmode; // 'u' for udp, 'n' for netpoll
 
@@ -41,9 +41,9 @@ static struct my_ktap _ktap = {};
 //////////////////////////////////////////////////////////////////////////////
 static struct file* _alloc(char* filename, char* ifname, int flags)
 {
-    struct ifreq ifr    = {};
+    struct ifreq ifr   = {};
     struct file* tapfp = NULL;
-    long         ret    = 0;
+    long         ret   = 0;
 
     if (NULL == filename)
     {
@@ -127,6 +127,7 @@ static int _setIpaddr(char* ifname, char* ipaddr)
     }
 
     sock_release(socket);
+
     return 0;
 
 _ERROR:
@@ -182,6 +183,7 @@ static int _setMtuSize(char* ifname)
     }
 
     sock_release(socket);
+
     return 0;
 
 _ERROR:
@@ -296,6 +298,7 @@ static int _enableInterface(char* ifname)
     }
 
     sock_release(socket);
+
     return 0;
 
 _ERROR:
@@ -324,7 +327,7 @@ static bool _isWantedData(void* data, int dataLen)
         return false;
     }
 
-    ethhdr = (struct ethhdr*)data;
+    ethhdr  = (struct ethhdr*)data;
     ethtype = ntohs(ethhdr->h_proto);
     if (ethtype == ETH_P_IP) // IP protocol
     {
@@ -408,6 +411,8 @@ static int _initTapProcessThread(struct my_ktap *ktap,
                                  my_threadFn fn,
                                  int irqNum)
 {
+    int errRet = 0;
+
     if (NULL == ktap)
     {
         dprint("ktap is null");
@@ -424,7 +429,7 @@ static int _initTapProcessThread(struct my_ktap *ktap,
     if (IS_ERR(ktap->processThread))
     {
         dprint("kthread create failed");
-        PTR_ERR(ktap->processThread);
+        errRet = PTR_ERR(ktap->processThread);
         return -1;
     }
 

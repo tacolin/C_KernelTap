@@ -32,7 +32,9 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 #define TAP_FILE_PATH   "/dev/net/tun"
-#define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+60+sizeof(struct udphdr))  // max ip hdr size
+
+// 60 bytes is max ip header size
+#define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+60+sizeof(struct udphdr))
 
 #define BUFFER_SIZE 2048
 #define IPADDR_SIZE 20
@@ -51,6 +53,11 @@
 //////////////////////////////////////////////////////////////////////////////
 typedef int (*my_threadFn)(void * data);
 
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Module Parameters
+//
+//////////////////////////////////////////////////////////////////////////////
 extern char* g_ifname;
 extern char* g_ip;
 extern char* g_mask;
@@ -78,7 +85,7 @@ void           my_close(void* fp);
 //      Function Declarations: Kernel TAP (ktap)
 //
 //////////////////////////////////////////////////////////////////////////////
-int ktap_init(char* ifname, char* ipaddr, char* netmask, char* txmode);
+int  ktap_init(char* ifname, char* ipaddr, char* netmask, char* txmode);
 void ktap_uninit(void);
 int  ktap_write(void* data, int dataLen);
 
@@ -97,12 +104,12 @@ int  kudp_send(void* data, int dataLen);
 //
 //////////////////////////////////////////////////////////////////////////////
 bool knetpoll_getInfo(char* dstip, struct netpoll* np);
-int knetpoll_send(struct netpoll* np, void* data, int dataLen);
+int  knetpoll_send(struct netpoll* np, void* data, int dataLen);
 
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Function Declarations: Netfilter Hook (kfilter)
 //
 //////////////////////////////////////////////////////////////////////////////
-int kfilter_init(char* rxmode);
+int  kfilter_init(char* rxmode);
 void kfilter_uninit(void);

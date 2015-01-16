@@ -43,11 +43,11 @@ static struct my_kudp _kudp = {};
 //////////////////////////////////////////////////////////////////////////////
 static int _processUdpRecvData(void* arg)
 {
-    struct my_kudp* kudp = (struct my_kudp*)arg;
-    struct msghdr   msg;
-    struct iovec    iov;
-    int  readLen  = 0;
-    int  writeLen = 0;
+    struct my_kudp* kudp     = (struct my_kudp*)arg;
+    struct msghdr   msg      = {};
+    struct iovec    iov      = {};
+    int             readLen  = 0;
+    int             writeLen = 0;
 
     if (NULL == arg)
     {
@@ -87,8 +87,6 @@ static int _processUdpRecvData(void* arg)
             dprint("ktap write failed, writeLen = %d", writeLen);
             break;
         }
-
-        // dprint("writeLen = %d", writeLen);
     }
 
     dprint("over");
@@ -103,15 +101,15 @@ static int _setupUdpTx(struct my_kudp* kudp)
         goto _ERROR;
     }
 
-    kudp->txaddr.sin_family = AF_INET;
+    kudp->txaddr.sin_family      = AF_INET;
     kudp->txaddr.sin_addr.s_addr = kudp->convertedDstip;
-    kudp->txaddr.sin_port = htons(kudp->tunnelport);
+    kudp->txaddr.sin_port        = htons(kudp->tunnelport);
 
     dprint("ok");
     return 0;
 
 _ERROR:
-    if (NULL ==  kudp->sock)
+    if (NULL == kudp->sock)
     {
         sock_release(kudp->sock);
         kudp->sock = NULL;
@@ -129,13 +127,13 @@ static int _setupUdpRx(struct my_kudp *kudp)
         goto _ERROR;
     }
 
-    kudp->rxaddr.sin_family = AF_INET;
+    kudp->rxaddr.sin_family      = AF_INET;
     kudp->rxaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    kudp->rxaddr.sin_port = htons(kudp->tunnelport);
+    kudp->rxaddr.sin_port        = htons(kudp->tunnelport);
 
     ret = kudp->sock->ops->bind(kudp->sock,
-                                  (struct sockaddr*)&(kudp->rxaddr),
-                                  sizeof(struct sockaddr));
+                                (struct sockaddr*)&(kudp->rxaddr),
+                                sizeof(struct sockaddr));
     if (0 > ret)
     {
         dprint("bind rx sock failed");
@@ -158,6 +156,8 @@ static int _initUdpProcessThread(struct my_kudp *kudp,
                                  my_threadFn fn,
                                  int irqNum)
 {
+    int errRet = 0;
+
     if (NULL == kudp)
     {
         dprint("kudp is null");
@@ -174,11 +174,12 @@ static int _initUdpProcessThread(struct my_kudp *kudp,
     if (IS_ERR(kudp->processThread))
     {
         dprint("kthread create failed");
-        PTR_ERR(kudp->processThread);
+        errRet = PTR_ERR(kudp->processThread);
         return -1;
     }
 
     memset(kudp->buffer, 0, BUFFER_SIZE);
+
     kudp->interruptNum = irqNum;
 
     return 0;
@@ -204,6 +205,7 @@ static int _startUdpProcessThread(struct my_kudp *kudp)
     }
 
     wake_up_process(kudp->processThread);
+
     return 0;
 }
 
@@ -224,7 +226,9 @@ static int _stopUdpProcessThread(struct my_kudp *kudp)
 
     kill_pid(find_vpid(kudp->processThread->pid), kudp->interruptNum, 1);
     kthread_stop(kudp->processThread);
+
     kudp->processThread = NULL;
+
     return 0;
 }
 
@@ -235,8 +239,8 @@ static int _stopUdpProcessThread(struct my_kudp *kudp)
 //////////////////////////////////////////////////////////////////////////////
 int kudp_send(void* data, int dataLen)
 {
-    struct msghdr msg;
-    struct iovec  iov;
+    struct msghdr msg = {};
+    struct iovec  iov = {};
 
     if (NULL == data)
     {
@@ -250,8 +254,8 @@ int kudp_send(void* data, int dataLen)
         return -1;
     }
 
-    iov.iov_base = data;
-    iov.iov_len  = dataLen;
+    iov.iov_base       = data;
+    iov.iov_len        = dataLen;
 
     msg.msg_flags      = 0;
     msg.msg_name       = &(_kudp.txaddr);
@@ -337,6 +341,7 @@ int kudp_init(char* dstip, int tunnelport, char* rxmode)
 
     dprint("dstip = %s, tunnelport = %d", dstip, tunnelport);
     dprint("ok");
+
     return 0;
 
 _ERROR:

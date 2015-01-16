@@ -75,10 +75,12 @@ bool knetpoll_getInfo(char* dstip, struct netpoll* np)
     }
 
     strlcpy(np->dev_name, routingTbl->dst.dev->name, IFNAMSIZ);
+
     np->local_ip.ip  = indev->ifa_list->ifa_local;
     np->remote_ip.ip = fl4.daddr;
     np->local_port   = g_tunnelPort;
     np->remote_port  = g_tunnelPort;
+
     memcpy(np->remote_mac, neigh->ha, ETH_ALEN);
 
     ret = netpoll_setup(np);
@@ -115,5 +117,6 @@ int knetpoll_send(struct netpoll *np, void* data, int dataLen)
     }
 
     netpoll_send_udp(np, data, dataLen);
+
     return dataLen;
 }
