@@ -5,11 +5,22 @@ ktunnel-objs := kmain.o ktap.o kudp.o ksyscall.o knetpoll.o kfilter.o
 
 else
 
+# ARCH ?= mips
+# CROSS_COMPILE ?=
+# KERNELDIR ?=
+
+# ARCH ?= arm
+# CROSS_COMPILE ?=
+# KERNELDIR ?=
+
+ARCH ?= x86
+CROSS_COMPILE ?=
 KERNELDIR ?= /lib/modules/$(shell uname -r)/build
+
 PWD       := $(shell pwd)
 
 default:
-	@$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
+	@$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C $(KERNELDIR) M=$(PWD) modules
 
 
 endif
