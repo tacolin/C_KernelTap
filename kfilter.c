@@ -102,7 +102,7 @@ static unsigned int _processHookLocalIn(unsigned int hook,
             goto _END;
         }
 
-        iphLen = ntohs(iph->ihl) << 2;
+        iphLen = iph->ihl << 2;
 
         dataLen = skb->len  - iphLen - sizeof(struct udphdr);
         data    = skb->data + iphLen + sizeof(struct udphdr);
