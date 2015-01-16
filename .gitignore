@@ -1,8 +1,15 @@
 # Object files
 *.o
-*.ko
 *.obj
 *.elf
+
+# Kernel Module
+*.ko
+*.cmd
+*.mod
+*.mod.c
+*.symvers
+*.order
 
 # Precompiled Headers
 *.gch
