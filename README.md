@@ -24,9 +24,7 @@ File Descriptions
 | ktap.c      | creating and using tap tunnel in kernel space.           |
 | kudp.c      | creating and using udp socket in kernel space.           |
 | ktunnel.h   | linux heraders, defined values, macros, type / function declarations. |
-|-------------|----------------------------------------------------------|
 | knetpoll.c  | using netpoll APIs to send udp packets.                  |
-|-------------|----------------------------------------------------------|
 | kfilter.c   | netfilter hook function for receiving tunnel data.       |
 | ktuunel_wireshark.lua | simple wireshark dissector for this project.   |
 
@@ -167,6 +165,10 @@ Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
           |     +---------+                          +--------+      |
           +--<--| KFILTER |-----<------<------<------|  KUDP  |<-----+
                 +---------+ netfilter           send +--------+
+
+
+
+If you use netpoll tx + netfilter rx, the structure will becomes:
 
     $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
       g_mask="255.255.255.0" g_tunnelPort=50000 \
