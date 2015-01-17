@@ -215,11 +215,11 @@ Open init.lua (in the isntalled path) in your text editor
 
 Go to the file bottom. find the line:
 
-        dofile(DATA_DIR.."console.lua")
+    dofile(DATA_DIR.."console.lua")
 
 Add a new line after it:
 
-        dofile(DATA_DIR.."ktunnel_wireshark.lua")
+    dofile(DATA_DIR.."ktunnel_wireshark.lua")
 
 Save the init.lua, and re-open (not refresh) you wireshark.
 
