@@ -168,12 +168,13 @@ Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
 
 
 
-If you use netpoll tx + netfilter rx, the structure will becomes:
+If you use netpoll tx + netfilter rx,
 
     $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
       g_mask="255.255.255.0" g_tunnelPort=50000 \
       g_txmode="netpoll" g_rxmode="filter"
 
+the structure will becomes:
 
                  COMPUTER A                           COMPUTER B
             192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
