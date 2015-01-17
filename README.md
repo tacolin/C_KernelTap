@@ -75,8 +75,8 @@ If you check packets in wireshark, you will see the ARP and ICMP packets encapsu
 
 
 
-tag: v1.0 (tx: udp, rx: udp)
-----------------------------
+tx: udp, rx: udp
+----------------
 
              COMPUTER A                           COMPUTER B
         192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
@@ -98,8 +98,8 @@ tag: v1.0 (tx: udp, rx: udp)
 
 
 
-tag: v2.0  (tx: udp or netpoll, rx: udp)
-----------------------------------------
+tx: netpoll, rx: udp
+--------------------
 
 If you insert module with different module parameter 'txmode', there will be some different with the above structure.
 
@@ -134,8 +134,8 @@ Netpoll tx mode will decrease a little CPU usage in sender COMPUTER.
 
 
 
-tag: v3.0 (tx: udp or netpoll, rx: udp or netfilter)
-----------------------------------------------------
+tx: udp, rx: netfilter
+----------------------
 
 If you insert module with different module parameter 'rxmode', there will be some different with the above structures.
 
@@ -167,6 +167,8 @@ Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
                 +---------+ netfilter           send +--------+
 
 
+tx: netpoll, rx: netfilter
+--------------------------
 
 If you use netpoll tx + netfilter rx,
 
