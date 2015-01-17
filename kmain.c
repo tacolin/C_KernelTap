@@ -87,6 +87,7 @@ static int __init ktunnel_init(void)
         dprint("module parameters check failed");
         goto _ERROR;
     }
+
     _showModuleParameters();
 
     ret = ktap_init(g_ifname, g_ip, g_mask, g_txmode);
