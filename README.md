@@ -5,48 +5,44 @@ This is an example of TAP tunnel in kernel space.
 
 Only the following packets can be passed in the TAP tunnel:
 
-    - ARP request / reply
-    - IPV4 ICMP request / reply
-    - IPV4 TCP packets
-    - IPV4 UDP packets
+    * ARP request / reply
+    * IPV4 ICMP request / reply
+    * IPV4 TCP packets
+    * IPV4 UDP packets
 
 The Tunnel is built in UDP with source port 50000 = destination port
 
-===============================================================================
+File Descriptions
+-----------------
 
-[File Descriptions]
+    * kmain.c     - kernel init / exit functions.
+    * ksyscall.c  - re-write some system calls in kernel space.
+    * ktap.c      - creating and using tap tunnel in kernel space.
+    * kudp.c      - creating and using udp socket in kernel space.
+    * ktunnel.h   - linux heraders, defined values, macros, type / function declarations.
 
-    kmain.c     - kernel init / exit functions.
-    ksyscall.c  - re-write some system calls in kernel space.
-    ktap.c      - creating and using tap tunnel in kernel space.
-    kudp.c      - creating and using udp socket in kernel space.
-    ktunnel.h   - linux heraders, defined values, macros,
-                  type / function declarations.
+    * knetpoll.c  - using netpoll APIs to send udp packets.
+    * kfilter.c   - netfilter hook function for receiving tunnel data.
 
-    knetpoll.c  - using netpoll APIs to send udp packets.
-    kfilter.c   - netfilter hook function for receiving tunnel data.
+    * ktuunel_wireshark.lua - simple wireshark dissector for this project.
 
-    ktuunel_wireshark.lua - simple wireshark dissector for this project.
+Verification Environment
+------------------------
 
-===============================================================================
+This project works in the following linux distributions:
 
-[Verification Environment]
+    * Ubuntu 14.04 i386 and amd64 - Kernel version 3.13.0
+    * Mint 17 i386 and amd64      - Kernel version 3.13.0
 
-    This project works in the following linux distributions:
+How to test?
+------------
 
-    - Ubuntu 14.04 i386 and amd64 - Kernel version 3.13.0
-    - Mint 17 i386 and amd64      - Kernel version 3.13.0
+Prepare 2 computers : COMPUTER A and COMPUTER B
 
-===============================================================================
+    * COMPUTER A : Real ip address 192.168.1.1
+    * COMPUTER B : Real ip address 192.168.1.2
 
-[How to test?]
-
-    Prepare 2 computers : COMPUTER A and COMPUTER B
-
-    COMPUTER A : Real ip address 192.168.1.1
-    COMPUTER B : Real ip address 192.168.1.2
-
-    Build your proejct, and insert kernel module in COMPUTER A:
+Build your proejct, and insert kernel module in COMPUTER A:
 
     $ cd kernel_tap/
 
@@ -57,21 +53,21 @@ The Tunnel is built in UDP with source port 50000 = destination port
 
     $ ifconfig
 
-    You will see the new network interface "tap01" with ipaddr "10.10.10.1"
+You will see the new network interface "tap01" with ipaddr "10.10.10.1"
 
-    Do it again in COMPUTER B:
+Do it again in COMPUTER B:
 
     $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
       g_mask="255.255.255.0" g_tunnelPort=50000
 
-    you will see the new network interface "tap01" with ipaddr "10.10.10.2"
+you will see the new network interface "tap01" with ipaddr "10.10.10.2"
 
-    In COMPUTER A, do "$ ping 10.10.10.2", and you will see ping success.
+In COMPUTER A, do "$ ping 10.10.10.2", and you will see ping success.
 
-    If you check packets in wireshark, you will see the ARP and ICMP packets
-    encapsulated in the UDP Tunnel.
+If you check packets in wireshark, you will see the ARP and ICMP packets encapsulated in the UDP Tunnel.
 
-    tag: v1.0
+tag: v1.0 (tx: udp, rx: udp)
+----------------------------
 
              COMPUTER A                           COMPUTER B
         192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
@@ -91,20 +87,15 @@ The Tunnel is built in UDP with source port 50000 = destination port
              +--------+       send / recv        +--------+
 
 
-===============================================================================
+tag: v2.0  (tx: udp or netpoll, rx: udp)
+----------------------------------------
 
-[Netpoll tx mode]
-
-    If you insert module with different module parameter 'txmode',
-    there will be some different with the above structure.
+If you insert module with different module parameter 'txmode', there will be some different with the above structure.
 
     $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
       g_mask="255.255.255.0" g_tunnelPort=50000 g_txmode="netpoll"
 
-    Netpoll tx mode will decrease a little CPU usage in sender COMPUTER.
-
-    tag: v2.0
-
+Netpoll tx mode will decrease a little CPU usage in sender COMPUTER.
 
              COMPUTER A                           COMPUTER B
         192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
@@ -129,19 +120,15 @@ write |     +----------+                         +--------+      | read
              +--------+ recv               send +----------+
 
 
-===============================================================================
+tag: v3.0 (tx: udp or netpoll, rx: udp or netfilter)
+----------------------------------------------------
 
-[Netfilter rx mode]
-
-    If you insert module with different module parameter 'rxmode',
-    there will be some different with the above structures.
+If you insert module with different module parameter 'rxmode', there will be some different with the above structures.
 
     $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
       g_mask="255.255.255.0" g_tunnelPort=50000 g_rxmode="filter"
 
-    Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
-
-    tag: v3.0
+Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
 
              COMPUTER A                           COMPUTER B
         192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
@@ -164,11 +151,6 @@ write |      +--------+                          +---------+     | read
       |     +---------+                          +--------+      |
       +--<--| KFILTER |-----<------<------<------|  KUDP  |<-----+
             +---------+ netfilter           send +--------+
-
-
-===============================================================================
-
-[Netpoll tx mode + Netfilter rx mode]
 
     $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
       g_mask="255.255.255.0" g_tunnelPort=50000 \
@@ -198,47 +180,39 @@ write |     +----------+                         +---------+     | read
             +---------+ netfilter          send +----------+
 
 
-===============================================================================
+How to use wireshark dissector?
+-------------------------------
 
-[How to use wireshark dissector?]
+Check wireshark is installed in your computer and works.
 
-    Check wireshark is installed in your computer and works.
+Find the installed path of wireshark, In windows default path is C:\Program Files\Wireshark\
 
-    Find the installed path of wireshark, In windows default path is
-    C:\Program Files\Wireshark\
+Put "ktuunel_wireshark.lua" to the wireshark installed path.
 
-    Put "ktuunel_wireshark.lua" to the wireshark installed path.
+Open init.lua (in the isntalled path) in your text editor
 
-    Open init.lua (in the isntalled path) in your text editor
-
-    Go to the file bottom. find the line:
+Go to the file bottom. find the line:
 
         dofile(DATA_DIR.."console.lua")
 
-    Add a new line after it:
+Add a new line after it:
 
         dofile(DATA_DIR.."ktunnel_wireshark.lua")
 
-    Save the init.lua, and re-open (not refresh) you wireshark.
+Save the init.lua, and re-open (not refresh) you wireshark.
 
-    The simple dissector will works.
+The simple dissector will works.
 
-    You could use "ktunnel" as the keyword to filter packets.
+You could use "ktunnel" as the keyword to filter packets.
 
-===============================================================================
+References
+----------
 
-[References]
+1.[Example of TUN in User Space](http://neokentblog.blogspot.tw/2014/05/linux-virtual-interface-tuntap.html)
 
-    1.Example of TUN in User Space
-    http://neokentblog.blogspot.tw/2014/05/linux-virtual-interface-tuntap.html
+2.[Example of Kernel Space UDP Socket](http://kernelnewbies.org/Simple_UDP_Server)
 
-    2.Example of Kernel Space UDP Socket
-    http://kernelnewbies.org/Simple_UDP_Server
+3.[Example of Sending UDP by Netpoll APIs](http://goo.gl/is95GX)
 
-    3.Example of Sending UDP by Netpoll APIs
-    http://goo.gl/is95GX
+4.[Example of Net Filter Hook](http://neokentblog.blogspot.tw/2014/06/netfilter-hook.html)
 
-    4.Example of Net Filter Hook
-    http://neokentblog.blogspot.tw/2014/06/netfilter-hook.html
-
-===============================================================================
