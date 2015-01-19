@@ -61,7 +61,7 @@ bool knetpoll_getInfo(char* dstip, struct netpoll* np)
     neigh = neigh_lookup(&arp_tbl, &(fl4.daddr), routingTbl->dst.dev);
     if (NULL == neigh)
     {
-        dprint("find no neighbour in arp table");
+        // dprint("find no neighbour in arp table");
         goto _ERROR;
     }
 

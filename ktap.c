@@ -388,7 +388,7 @@ static int _processTapReadData(void *arg)
                 }
                 else
                 {
-                    dprint("get no netpoll info");
+                    // dprint("get no netpoll info");
                 }
             }
             else
@@ -398,7 +398,7 @@ static int _processTapReadData(void *arg)
 
             if (0 >= sendLen)
             {
-                dprint("send failed, sendLen = %d", sendLen);
+                // dprint("send failed, sendLen = %d", sendLen);
             }
         }
     }
