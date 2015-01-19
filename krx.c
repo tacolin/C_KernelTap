@@ -1,17 +1,30 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Headers
+//
+//////////////////////////////////////////////////////////////////////////////
 #include "ktunnel.h"
 
-typedef int (*my_rxHandleFn)(void* data, int dataLen);
-
-static my_rxHandleFn _rxHandleFn            = NULL;
-static unsigned char _rxBuffer[BUFFER_SIZE] = {0};
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Global Variables
+//
+//////////////////////////////////////////////////////////////////////////////
 
 static bool                _rxEnabled = false;
 static struct sockaddr_in  _rxaddr    = {};
 static struct socket*      _rxsock    = NULL;
 static struct task_struct* _rxThread  = NULL;
+static struct nf_hook_ops _hookOps    = {};
 
-static struct nf_hook_ops _hookOps   = {};
+static unsigned char      _rxBuffer[BUFFER_SIZE]   = {0};
+static int (*_rxHandleFn)(void* data, int dataLen) = NULL;
 
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Static Functions : Net filter
+//
+//////////////////////////////////////////////////////////////////////////////
 static bool _isKtunnelData(struct sk_buff *skb)
 {
     struct iphdr*  iph  = NULL;
@@ -53,6 +66,8 @@ static unsigned int _netfilterRecv(unsigned int hook,
     // not support
 #endif
 {
+    if (!_rxHandleFn) { goto _accept; }
+
     if (_isKtunnelData(skb))
     {
         int           dataLen   = 0;
@@ -106,6 +121,11 @@ _err_return:
     return -1;
 }
 
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Static Functions : UDP
+//
+//////////////////////////////////////////////////////////////////////////////
 static int _udpRecv(void* arg)
 {
     struct msghdr   msg       = {};
@@ -199,12 +219,17 @@ _err_return:
     return -1;
 }
 
-int ktunnel_initRx(char* rxmode, int (*fn)(void* data, int dataLen))
+//////////////////////////////////////////////////////////////////////////////
+//
+//      Functions
+//
+//////////////////////////////////////////////////////////////////////////////
+int ktunnel_initRx(char* rxmode, int (*handlefn)(void* data, int dataLen))
 {
     int retval;
 
-    CHECK_IF(NULL == rxmode, return -1, "rxmode is null");
-    CHECK_IF(NULL == fn,     return -1, "rx handle fn is null");
+    CHECK_IF(NULL == rxmode,   return -1, "rxmode is null");
+    CHECK_IF(NULL == handlefn, return -1, "rx data handle fn is null");
 
     if (0 == strcmp(rxmode, "udp"))
     {
@@ -220,8 +245,7 @@ int ktunnel_initRx(char* rxmode, int (*fn)(void* data, int dataLen))
         return -1;
     }
 
-    _rxHandleFn = fn;
-
+    _rxHandleFn = handlefn;
     _rxEnabled = true;
 
     return retval;

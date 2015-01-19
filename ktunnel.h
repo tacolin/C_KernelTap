@@ -31,13 +31,11 @@
 //      Defined Values
 //
 //////////////////////////////////////////////////////////////////////////////
-#define TAP_FILE_PATH   "/dev/net/tun"
+#define TAP_FILE_PATH "/dev/net/tun"
+#define BUFFER_SIZE   2048
 
 // 60 bytes is max ip header size
 #define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+60+sizeof(struct udphdr))
-
-#define BUFFER_SIZE 2048
-#define IPADDR_SIZE 20
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -66,7 +64,6 @@
         fn(_listForApplyAll[i]);\
     }\
 }
-
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -107,17 +104,17 @@ void           my_close(void* fp);
 //
 //////////////////////////////////////////////////////////////////////////////
 void ktunnel_uninitTap(void);
-int ktunnel_initTap(char* ifname, char* ipaddr, char* netmask);
-int ktunnel_writeTap(void* data, int dataLen);
+int  ktunnel_initTap(char* ifname, char* ipaddr, char* netmask);
+int  ktunnel_writeTap(void* data, int dataLen);
 
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Function Declarations: TX
 //
 //////////////////////////////////////////////////////////////////////////////
-int ktunnel_send(void* data, int dataLen);
+int  ktunnel_send(void* data, int dataLen);
 void ktunnel_uninitTx(char* txmode);
-int ktunnel_initTx(char* txmode);
+int  ktunnel_initTx(char* txmode);
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -125,4 +122,4 @@ int ktunnel_initTx(char* txmode);
 //
 //////////////////////////////////////////////////////////////////////////////
 void ktunnel_uninitRx(char* rxmode);
-int ktunnel_initRx(char* rxmode, int (*fn)(void* data, int dataLen) );
+int  ktunnel_initRx(char* rxmode, int (*handlefn)(void* data, int dataLen) );

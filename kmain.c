@@ -34,13 +34,13 @@ static mm_segment_t _oldfs;
 //      Static Functions : handle kernel memory access
 //
 //////////////////////////////////////////////////////////////////////////////
-static int _checkModuleNecessaryParameters(void)
+static int _checkParameters(void)
 {
     if (NULL == g_dstRealip) { return -1; }
     return 0;
 }
 
-static void _showModuleParameters(void)
+static void _showParameters(void)
 {
     dprint("g_ifname     = %s", g_ifname);
     dprint("g_ip         = %s", g_ip);
@@ -67,10 +67,10 @@ static int __init ktunnel_init(void)
     _oldfs = get_fs();
     set_fs(KERNEL_DS);
 
-    retval = _checkModuleNecessaryParameters();
+    retval = _checkParameters();
     CHECK_IF(0 > retval, goto _err_return, "module parameters check failed");
 
-    _showModuleParameters();
+    _showParameters();
 
     retval = ktunnel_initTap(g_ifname, g_ip, g_mask);
     CHECK_IF(0 > retval, goto _err_return, "init tap failed");
