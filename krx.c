@@ -133,10 +133,8 @@ static int _udpRecv(void* arg)
         msg.msg_iov        = &iov;
         msg.msg_iovlen     = 1;
 
-        dprint("before sock_recvmsg ...");
         recvLen = sock_recvmsg(_rxsock, &msg, BUFFER_SIZE, msg.msg_flags) ;
         CHECK_IF(0 > recvLen, goto _recv_over, "sock_recvmsg failed, return value = %d", recvLen);
-        dprint("sock_recvmsg recvLen = %d", recvLen);
 
         handleLen = _rxHandleFn(_rxBuffer, recvLen);
         CHECK_IF(0 > handleLen, goto _recv_over, "handle rx data failed, return value = %d", handleLen);
