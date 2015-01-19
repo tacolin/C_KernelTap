@@ -45,13 +45,34 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 #define dprint(a, b...) printk("%s(): "a"\n", __func__, ##b)
+#define derror(a, b...) printk("[ERROR] %s(): "a"\n", __func__, ##b)
+
+#define CHECK_IF(assertion, error_action, ...) \
+{\
+    if (assertion) \
+    { \
+        derror(__VA_ARGS__); \
+        {error_action;} \
+    }\
+}
+
+#define FN_APPLY_ALL(type, fn, ...) \
+{\
+    void* _stopPoint = (int[]){0};\
+    void** _listForApplyAll = (type[]){__VA_ARGS__, _stopPoint};\
+    int i;\
+    for (i=0; _listForApplyAll[i] != _stopPoint; i++)\
+    {\
+        fn(_listForApplyAll[i]);\
+    }\
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 //
 //      Type Definitions
 //
 //////////////////////////////////////////////////////////////////////////////
-typedef int (*my_threadFn)(void * data);
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -68,7 +89,7 @@ extern char* g_rxmode;
 
 //////////////////////////////////////////////////////////////////////////////
 //
-//      Function Declarations: My System Calls (ksyscall)
+//      Function Declarations: My System Calls
 //
 //////////////////////////////////////////////////////////////////////////////
 int  my_read(struct file* fp, void *buf, int count);
@@ -82,34 +103,26 @@ void           my_close(void* fp);
 
 //////////////////////////////////////////////////////////////////////////////
 //
-//      Function Declarations: Kernel TAP (ktap)
+//      Function Declarations: TAP
 //
 //////////////////////////////////////////////////////////////////////////////
-int  ktap_init(char* ifname, char* ipaddr, char* netmask, char* txmode);
-void ktap_uninit(void);
-int  ktap_write(void* data, int dataLen);
+void ktunnel_uninitTap(void);
+int ktunnel_initTap(char* ifname, char* ipaddr, char* netmask);
+int ktunnel_writeTap(void* data, int dataLen);
 
 //////////////////////////////////////////////////////////////////////////////
 //
-//      Function Declarations: Kernel UDP (ktap)
+//      Function Declarations: TX
 //
 //////////////////////////////////////////////////////////////////////////////
-int  kudp_init(char* dstip, int tunnelport, char* rxmode);
-void kudp_uninit(void);
-int  kudp_send(void* data, int dataLen);
+int ktunnel_send(void* data, int dataLen);
+void ktunnel_uninitTx(char* txmode);
+int ktunnel_initTx(char* txmode);
 
 //////////////////////////////////////////////////////////////////////////////
 //
-//      Function Declarations: Kernel Netpoll (knetpoll)
+//      Function Declarations: RX
 //
 //////////////////////////////////////////////////////////////////////////////
-bool knetpoll_getInfo(char* dstip, struct netpoll* np);
-int  knetpoll_send(struct netpoll* np, void* data, int dataLen);
-
-//////////////////////////////////////////////////////////////////////////////
-//
-//      Function Declarations: Netfilter Hook (kfilter)
-//
-//////////////////////////////////////////////////////////////////////////////
-int  kfilter_init(char* rxmode);
-void kfilter_uninit(void);
+void ktunnel_uninitRx(char* rxmode);
+int ktunnel_initRx(char* rxmode, int (*fn)(void* data, int dataLen) );
