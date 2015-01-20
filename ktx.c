@@ -43,6 +43,7 @@ static int _netpollSend(void* data, int dataLen)
 
     routingTbl = ip_route_output_key(&init_net, &fl4);
     CHECK_IF(NULL == routingTbl, goto _err_return, "get no routing table for dstip = %pI4", &_dstip);
+    CHECK_IF(NULL == routingTbl->dst.dev, goto _err_return, "get no destination device for dstip = %pI4", &_dstip);
 
     neigh = neigh_lookup(&arp_tbl, &(fl4.daddr), routingTbl->dst.dev);
     CHECK_IF(NULL == neigh, goto _err_return, "find no arp info by dstip = %pI4", &_dstip);
