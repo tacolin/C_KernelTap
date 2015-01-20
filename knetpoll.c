@@ -57,6 +57,12 @@ bool knetpoll_getInfo(char* dstip, struct netpoll* np)
         goto _ERROR;
     }
 
+    if (NULL == routingTbl->dst.dev)
+    {
+        dprint("find no dst device with dstip = %s", dstip);
+        goto _ERROR;
+    }
+
     // get dstination mac address from arp table
     neigh = neigh_lookup(&arp_tbl, &(fl4.daddr), routingTbl->dst.dev);
     if (NULL == neigh)
