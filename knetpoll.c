@@ -57,6 +57,12 @@ bool knetpoll_getInfo(char* dstip, struct netpoll* np)
         goto _ERROR;
     }
 
+    if (IS_ERR(routingTbl))
+    {
+        dprint("routingTbl address is error address");
+        goto _ERROR;
+    }
+
     if (NULL == routingTbl->dst.dev)
     {
         dprint("find no dst device with dstip = %s", dstip);
