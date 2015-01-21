@@ -51,15 +51,9 @@ bool knetpoll_getInfo(char* dstip, struct netpoll* np)
     // get routing table
     // get outgoing net_device from routing table
     routingTbl = ip_route_output_key(&init_net, &fl4);
-    if (NULL == routingTbl)
+    if ((NULL == routingTbl) || IS_ERR(routingTbl))
     {
         dprint("find no routing table with dstip = %s", dstip);
-        goto _ERROR;
-    }
-
-    if (IS_ERR(routingTbl))
-    {
-        dprint("routingTbl address is error address");
         goto _ERROR;
     }
 
