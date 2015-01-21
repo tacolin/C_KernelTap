@@ -57,8 +57,8 @@ static int _netpollSend(void* data, int dataLen)
     strlcpy(np.dev_name, routingTbl->dst.dev->name, IFNAMSIZ);
     np.local_ip.ip  = indev->ifa_list->ifa_local;
     np.remote_ip.ip = fl4.daddr;
-    np.local_port   = g_tunnelPort;
-    np.remote_port  = g_tunnelPort;
+    np.local_port   = g_port;
+    np.remote_port  = g_port;
     memcpy(np.remote_mac, neigh->ha, ETH_ALEN);
 
     // fill the rest field of netpoll info
@@ -134,7 +134,7 @@ static int _initUdpTx(void)
 
     _txaddr.sin_family      = AF_INET;
     _txaddr.sin_addr.s_addr = _dstip;
-    _txaddr.sin_port        = htons(g_tunnelPort);
+    _txaddr.sin_port        = htons(g_port);
 
     return 0;
 
@@ -169,7 +169,7 @@ int ktunnel_initTx(char* txmode)
 
     CHECK_IF(NULL == txmode, return -1, "txmode is null");
 
-    retval = my_inet_pton(AF_INET, g_dstRealip, &_dstip);
+    retval = my_inet_pton(AF_INET, g_dst, &_dstip);
     CHECK_IF(0 > retval, return -1, "my inet pton failed");
 
     if (0 == strcmp(txmode, "udp"))

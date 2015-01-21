@@ -42,7 +42,7 @@ static bool _isKtunnelData(struct sk_buff *skb)
     if (NULL == udph) { return false; }
 
     dstport = ntohs(udph->dest);
-    if (dstport != g_tunnelPort) { return false; }
+    if (dstport != g_port) { return false; }
 
     return true;
 }
@@ -193,7 +193,7 @@ static int _initUdpRx(void)
 
     _rxaddr.sin_family      = AF_INET;
     _rxaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    _rxaddr.sin_port        = htons(g_tunnelPort);
+    _rxaddr.sin_port        = htons(g_port);
 
     retval = _rxsock->ops->bind(_rxsock, (struct sockaddr*)&_rxaddr, sizeof(struct sockaddr));
     CHECK_IF(0 > retval, goto _err_return, "bind failed, retval = %d", retval);

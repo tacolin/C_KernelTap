@@ -79,8 +79,8 @@
 extern char* g_ifname;
 extern char* g_ip;
 extern char* g_mask;
-extern char* g_dstRealip;
-extern int   g_tunnelPort;
+extern char* g_dst;  // dst real ip
+extern int   g_port; // tunnel port
 extern char* g_txmode;
 extern char* g_rxmode;
 
