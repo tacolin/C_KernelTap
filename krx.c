@@ -15,7 +15,7 @@ static bool                _rxEnabled = false;
 static struct sockaddr_in  _rxaddr    = {};
 static struct socket*      _rxsock    = NULL;
 static struct task_struct* _rxThread  = NULL;
-static struct nf_hook_ops _hookOps    = {};
+static struct nf_hook_ops  _hookOps   = {};
 
 static unsigned char      _rxBuffer[BUFFER_SIZE]   = {0};
 static int (*_rxHandleFn)(void* data, int dataLen) = NULL;
@@ -66,7 +66,7 @@ static unsigned int _netfilterRecv(unsigned int hook,
     // not support
 #endif
 {
-    if (!_rxHandleFn) { goto _accept; }
+    if (!_rxHandleFn) { goto accept; }
 
     if (_isKtunnelData(skb))
     {
@@ -77,7 +77,7 @@ static unsigned int _netfilterRecv(unsigned int hook,
         int           iphLen    = 0;
         mm_segment_t  oldfs;
 
-        if (NULL == iph) { goto _accept; }
+        if (NULL == iph) { goto accept; }
 
         iphLen  = iph->ihl << 2;
         dataLen = skb->len  - iphLen - sizeof(struct udphdr);
@@ -88,12 +88,12 @@ static unsigned int _netfilterRecv(unsigned int hook,
         handleLen = _rxHandleFn(data, dataLen);
         set_fs(oldfs);
 
-        if (0 >= handleLen) { goto _accept; }
+        if (0 >= handleLen) { goto accept; }
 
         return NF_DROP;
     }
 
-_accept:
+accept:
     return NF_ACCEPT;
 }
 
@@ -113,11 +113,11 @@ static int _initNetFilterRx(void)
     _hookOps.hook     = _netfilterRecv;
 
     retval = nf_register_hook(&_hookOps);
-    CHECK_IF(0 > retval, goto _err_return, "nf register hook failed");
+    CHECK_IF(0 > retval, goto err_return, "nf register hook failed");
 
     return 0;
 
-_err_return:
+err_return:
     return -1;
 }
 
@@ -133,7 +133,7 @@ static int _udpRecv(void* arg)
     int             recvLen   = 0;
     int             handleLen = 0;
 
-    CHECK_IF(NULL == _rxHandleFn, goto _recv_over, "rx handle fn is null");
+    CHECK_IF(NULL == _rxHandleFn, goto recv_over, "rx handle fn is null");
 
     allow_signal(SIGINT);
 
@@ -154,13 +154,13 @@ static int _udpRecv(void* arg)
         msg.msg_iovlen     = 1;
 
         recvLen = sock_recvmsg(_rxsock, &msg, BUFFER_SIZE, msg.msg_flags) ;
-        CHECK_IF(0 > recvLen, goto _recv_over, "sock_recvmsg failed, return value = %d", recvLen);
+        CHECK_IF(0 > recvLen, goto recv_over, "sock_recvmsg failed, return value = %d", recvLen);
 
         handleLen = _rxHandleFn(_rxBuffer, recvLen);
-        CHECK_IF(0 > handleLen, goto _recv_over, "handle rx data failed, return value = %d", handleLen);
+        CHECK_IF(0 > handleLen, goto recv_over, "handle rx data failed, return value = %d", handleLen);
     }
 
-_recv_over:
+recv_over:
     dprint("udp rx thread over");
     return 0;
 }
@@ -188,29 +188,29 @@ static int _initUdpRx(void)
     int retval = 0;
 
     _rxsock = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    CHECK_IF(NULL == _rxsock,      goto _err_return, "my socket failed");
-    CHECK_IF(NULL == _rxsock->ops, goto _err_return, "my socket failed");
+    CHECK_IF(NULL == _rxsock,      goto err_return, "my socket failed");
+    CHECK_IF(NULL == _rxsock->ops, goto err_return, "my socket failed");
 
     _rxaddr.sin_family      = AF_INET;
     _rxaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     _rxaddr.sin_port        = htons(g_port);
 
     retval = _rxsock->ops->bind(_rxsock, (struct sockaddr*)&_rxaddr, sizeof(struct sockaddr));
-    CHECK_IF(0 > retval, goto _err_return, "bind failed, retval = %d", retval);
+    CHECK_IF(0 > retval, goto err_return, "bind failed, retval = %d", retval);
 
     _rxThread = kthread_create(_udpRecv, NULL, "UDP RX Thread");
     if (IS_ERR(_rxThread))
     {
         derror("kthread create failed");
         retval = PTR_ERR(_rxThread);
-        goto _err_return;
+        goto err_return;
     }
 
     wake_up_process(_rxThread);
 
     return 0;
 
-_err_return:
+err_return:
     if (_rxsock)
     {
         sock_release(_rxsock);

@@ -41,15 +41,15 @@ struct socket* my_socket(int family, int type, int protocol)
     struct file*   fp     = NULL;
 
     retval = sock_create(family, type, protocol, &socket);
-    CHECK_IF(0 > retval,     goto _err_return, "sock create failed");
-    CHECK_IF(NULL == socket, goto _err_return, "sock is null");
+    CHECK_IF(0 > retval,     goto err_return, "sock create failed");
+    CHECK_IF(NULL == socket, goto err_return, "sock is null");
 
     fp = sock_alloc_file(socket, 0, NULL);
-    CHECK_IF(NULL == fp, goto _err_return, "socket alloc file failed");
+    CHECK_IF(NULL == fp, goto err_return, "socket alloc file failed");
 
     return socket;
 
-_err_return:
+err_return:
     if (socket) { sock_release(socket); }
     return NULL;
 }

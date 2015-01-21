@@ -68,23 +68,23 @@ static int __init ktunnel_init(void)
     set_fs(KERNEL_DS);
 
     retval = _checkParameters();
-    CHECK_IF(0 > retval, goto _err_return, "module parameters check failed");
+    CHECK_IF(0 > retval, goto err_return, "module parameters check failed");
 
     _showParameters();
 
     retval = ktunnel_initTap(g_ifname, g_ip, g_mask);
-    CHECK_IF(0 > retval, goto _err_return, "init tap failed");
+    CHECK_IF(0 > retval, goto err_return, "init tap failed");
 
     retval = ktunnel_initTx(g_txmode);
-    CHECK_IF(0 > retval, goto _err_return, "init tx failed");
+    CHECK_IF(0 > retval, goto err_return, "init tx failed");
 
     retval = ktunnel_initRx(g_rxmode, ktunnel_writeTap);
-    CHECK_IF(0 > retval, goto _err_return, "init rx failed");
+    CHECK_IF(0 > retval, goto err_return, "init rx failed");
 
     dprint("ktuunel init ok");
     return 0;
 
-_err_return:
+err_return:
     ktunnel_uninitRx(g_rxmode);
     ktunnel_uninitTx(g_txmode);
     ktunnel_uninitTap();

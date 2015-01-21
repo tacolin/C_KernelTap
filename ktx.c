@@ -33,8 +33,8 @@ static int _netpollSend(void* data, int dataLen)
     struct in_device* indev      = NULL;
     struct netpoll    np         = {};
 
-    CHECK_IF(NULL == data, goto _err_return, "data is null");
-    CHECK_IF(0 >= dataLen, goto _err_return, "dataLen <= 0");
+    CHECK_IF(NULL == data, goto err_return, "data is null");
+    CHECK_IF(0 >= dataLen, goto err_return, "dataLen <= 0");
 
     fl4.flowi4_oif = 0;
     fl4.flowi4_tos = 0;
@@ -42,16 +42,16 @@ static int _netpollSend(void* data, int dataLen)
     fl4.daddr      = _dstip;
 
     routingTbl = ip_route_output_key(&init_net, &fl4);
-    CHECK_IF(NULL == routingTbl, goto _err_return, "get no routing table for dstip = %pI4", &_dstip);
-    CHECK_IF(IS_ERR(routingTbl), goto _err_return, "get wrong routing table address for dstip = %pI4", &_dstip);
-    CHECK_IF(NULL == routingTbl->dst.dev, goto _err_return, "get no destination device for dstip = %pI4", &_dstip);
+    CHECK_IF(NULL == routingTbl, goto err_return, "get no routing table for dstip = %pI4", &_dstip);
+    CHECK_IF(IS_ERR(routingTbl), goto err_return, "get wrong routing table address for dstip = %pI4", &_dstip);
+    CHECK_IF(NULL == routingTbl->dst.dev, goto err_return, "get no destination device for dstip = %pI4", &_dstip);
 
     neigh = neigh_lookup(&arp_tbl, &(fl4.daddr), routingTbl->dst.dev);
-    CHECK_IF(NULL == neigh, goto _err_return, "find no arp info by dstip = %pI4", &_dstip);
+    CHECK_IF(NULL == neigh, goto err_return, "find no arp info by dstip = %pI4", &_dstip);
 
     // get in_net from outgoing net_device & get source ip address from in_net
     indev = __in_dev_get_rtnl(routingTbl->dst.dev);
-    CHECK_IF(NULL == indev, goto _err_return, "get no source ip addr by in_net");
+    CHECK_IF(NULL == indev, goto err_return, "get no source ip addr by in_net");
 
     // fill netpoll info
     strlcpy(np.dev_name, routingTbl->dst.dev->name, IFNAMSIZ);
@@ -63,14 +63,14 @@ static int _netpollSend(void* data, int dataLen)
 
     // fill the rest field of netpoll info
     retval = netpoll_setup(&np);
-    CHECK_IF(0 != retval, goto _err_return, "nepoll setup failed");
+    CHECK_IF(0 != retval, goto err_return, "nepoll setup failed");
 
     // netpoll_send_udp return void, so we suppose it works.
     netpoll_send_udp(&np, data, dataLen);
 
     return dataLen;
 
-_err_return:
+err_return:
     return -1;
 }
 
@@ -96,8 +96,8 @@ static int _udpSend(void* data, int dataLen)
     struct msghdr msg = {};
     struct iovec  iov = {};
 
-    CHECK_IF(NULL == data, goto _err_return, "data is null");
-    CHECK_IF(0 >= dataLen, goto _err_return, "dataLen <= 0");
+    CHECK_IF(NULL == data, goto err_return, "data is null");
+    CHECK_IF(0 >= dataLen, goto err_return, "dataLen <= 0");
 
     iov.iov_base       = data;
     iov.iov_len        = dataLen;
@@ -112,7 +112,7 @@ static int _udpSend(void* data, int dataLen)
 
     return sock_sendmsg(_txsock, &msg, dataLen);
 
-_err_return:
+err_return:
     return -1;
 }
 
@@ -129,8 +129,8 @@ static void _uninitUdpTx(void)
 static int _initUdpTx(void)
 {
     _txsock = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    CHECK_IF(NULL == _txsock,      goto _err_return, "my socket failed");
-    CHECK_IF(NULL == _txsock->ops, goto _err_return, "my socket failed");
+    CHECK_IF(NULL == _txsock,      goto err_return, "my socket failed");
+    CHECK_IF(NULL == _txsock->ops, goto err_return, "my socket failed");
 
     _txaddr.sin_family      = AF_INET;
     _txaddr.sin_addr.s_addr = _dstip;
@@ -138,7 +138,7 @@ static int _initUdpTx(void)
 
     return 0;
 
-_err_return:
+err_return:
     if (_txsock)
     {
         sock_release(_txsock);

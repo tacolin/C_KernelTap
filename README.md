@@ -22,10 +22,9 @@ File Descriptions
 | kmain.c     | kernel init / exit functions.                            |
 | ksyscall.c  | re-write some system calls in kernel space.              |
 | ktap.c      | creating and using tap tunnel in kernel space.           |
-| kudp.c      | creating and using udp socket in kernel space.           |
+| ktx.c       | tunnel tx part (udp or netpoll).                         |
 | ktunnel.h   | linux heraders, defined values, macros, type / function declarations. |
-| knetpoll.c  | using netpoll APIs to send udp packets.                  |
-| kfilter.c   | netfilter hook function for receiving tunnel data.       |
+| krx.c       | tunnel rx part (udp or net filter).                      |
 | ktuunel_wireshark.lua | simple wireshark dissector for this project.   |
 
 
@@ -54,8 +53,8 @@ Build your proejct, and insert kernel module in COMPUTER A:
 
     $ make
 
-    $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.2" g_ip="10.10.10.1" \
-      g_mask="255.255.255.0" g_tunnelPort=50000
+    $ sudo insmod ktunnel.ko g_dst="192.168.1.2" g_ip="10.10.10.1" \
+      g_mask="255.255.255.0" g_port=50000
 
     $ ifconfig
 
@@ -63,8 +62,8 @@ You will see the new network interface "tap01" with ipaddr "10.10.10.1"
 
 Do it again in COMPUTER B:
 
-    $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
-      g_mask="255.255.255.0" g_tunnelPort=50000
+    $ sudo insmod ktunnel.ko g_dst="192.168.1.1" g_ip="10.10.10.2" \
+      g_mask="255.255.255.0" g_port=50000
 
 you will see the new network interface "tap01" with ipaddr "10.10.10.2"
 
@@ -103,8 +102,8 @@ tx: netpoll, rx: udp
 
 If you insert module with different module parameter 'txmode', there will be some different with the above structure.
 
-    $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
-      g_mask="255.255.255.0" g_tunnelPort=50000 g_txmode="netpoll"
+    $ sudo insmod ktunnel.ko g_dst="192.168.1.1" g_ip="10.10.10.2" \
+      g_mask="255.255.255.0" g_port=50000 g_txmode="netpoll"
 
 Netpoll tx mode will decrease a little CPU usage in sender COMPUTER.
 
@@ -139,8 +138,8 @@ tx: udp, rx: netfilter
 
 If you insert module with different module parameter 'rxmode', there will be some different with the above structures.
 
-    $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
-      g_mask="255.255.255.0" g_tunnelPort=50000 g_rxmode="filter"
+    $ sudo insmod ktunnel.ko g_dst="192.168.1.1" g_ip="10.10.10.2" \
+      g_mask="255.255.255.0" g_port=50000 g_rxmode="filter"
 
 Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
 
@@ -172,8 +171,8 @@ tx: netpoll, rx: netfilter
 
 If you use netpoll tx + netfilter rx,
 
-    $ sudo insmod ktunnel.ko g_dstRealip="192.168.1.1" g_ip="10.10.10.2" \
-      g_mask="255.255.255.0" g_tunnelPort=50000 \
+    $ sudo insmod ktunnel.ko g_dst="192.168.1.1" g_ip="10.10.10.2" \
+      g_mask="255.255.255.0" g_port=50000 \
       g_txmode="netpoll" g_rxmode="filter"
 
 the structure will becomes:
