@@ -1,7 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-//
 //      Headers
-//
 //////////////////////////////////////////////////////////////////////////////
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -27,49 +25,53 @@
 #include <linux/netfilter_ipv4.h> // for netfilter
 
 //////////////////////////////////////////////////////////////////////////////
-//
 //      Defined Values
-//
 //////////////////////////////////////////////////////////////////////////////
-#define TAP_FILE_PATH   "/dev/net/tun"
+#define TAP_FILE_PATH "/dev/net/tun"
+#define BUFFER_SIZE   2048
 
 // 60 bytes is max ip header size
 #define TUNNEL_HDR_SIZE (sizeof(struct ethhdr)+60+sizeof(struct udphdr))
 
-#define BUFFER_SIZE 2048
-#define IPADDR_SIZE 20
-
 //////////////////////////////////////////////////////////////////////////////
-//
 //      Macros
-//
 //////////////////////////////////////////////////////////////////////////////
 #define dprint(a, b...) printk("%s(): "a"\n", __func__, ##b)
+#define derror(a, b...) printk("[ERROR] %s(): "a"\n", __func__, ##b)
+
+#define CHECK_IF(assertion, error_action, ...) \
+{\
+    if (assertion) \
+    { \
+        derror(__VA_ARGS__); \
+        {error_action;} \
+    }\
+}
+
+#define FN_APPLY_ALL(type, fn, ...) \
+{\
+    void* _stopPoint = (int[]){0};\
+    void** _listForApplyAll = (type[]){__VA_ARGS__, _stopPoint};\
+    int i;\
+    for (i=0; _listForApplyAll[i] != _stopPoint; i++)\
+    {\
+        fn(_listForApplyAll[i]);\
+    }\
+}
 
 //////////////////////////////////////////////////////////////////////////////
-//
-//      Type Definitions
-//
-//////////////////////////////////////////////////////////////////////////////
-typedef int (*my_threadFn)(void * data);
-
-//////////////////////////////////////////////////////////////////////////////
-//
 //      Module Parameters
-//
 //////////////////////////////////////////////////////////////////////////////
 extern char* g_ifname;
 extern char* g_ip;
 extern char* g_mask;
-extern char* g_dstRealip;
-extern int   g_tunnelPort;
+extern char* g_dst;  // dst real ip
+extern int   g_port; // tunnel port
 extern char* g_txmode;
 extern char* g_rxmode;
 
 //////////////////////////////////////////////////////////////////////////////
-//
-//      Function Declarations: My System Calls (ksyscall)
-//
+//      Function Declarations: My System Calls
 //////////////////////////////////////////////////////////////////////////////
 int  my_read(struct file* fp, void *buf, int count);
 int  my_write(struct file* fp, const void *buf, int count);
@@ -81,35 +83,21 @@ struct file*   my_open(char* filename, int flags);
 void           my_close(void* fp);
 
 //////////////////////////////////////////////////////////////////////////////
-//
-//      Function Declarations: Kernel TAP (ktap)
-//
+//      Function Declarations: TAP
 //////////////////////////////////////////////////////////////////////////////
-int  ktap_init(char* ifname, char* ipaddr, char* netmask, char* txmode);
-void ktap_uninit(void);
-int  ktap_write(void* data, int dataLen);
+void ktunnel_uninitTap(void);
+int  ktunnel_initTap(char* ifname, char* ipaddr, char* netmask);
+int  ktunnel_writeTap(void* data, int dataLen);
 
 //////////////////////////////////////////////////////////////////////////////
-//
-//      Function Declarations: Kernel UDP (ktap)
-//
+//      Function Declarations: TX
 //////////////////////////////////////////////////////////////////////////////
-int  kudp_init(char* dstip, int tunnelport, char* rxmode);
-void kudp_uninit(void);
-int  kudp_send(void* data, int dataLen);
+int  ktunnel_send(void* data, int dataLen);
+void ktunnel_uninitTx(char* txmode);
+int  ktunnel_initTx(char* txmode);
 
 //////////////////////////////////////////////////////////////////////////////
-//
-//      Function Declarations: Kernel Netpoll (knetpoll)
-//
+//      Function Declarations: RX
 //////////////////////////////////////////////////////////////////////////////
-bool knetpoll_getInfo(char* dstip, struct netpoll* np);
-int  knetpoll_send(struct netpoll* np, void* data, int dataLen);
-
-//////////////////////////////////////////////////////////////////////////////
-//
-//      Function Declarations: Netfilter Hook (kfilter)
-//
-//////////////////////////////////////////////////////////////////////////////
-int  kfilter_init(char* rxmode);
-void kfilter_uninit(void);
+void ktunnel_uninitRx(char* rxmode);
+int  ktunnel_initRx(char* rxmode, int (*handlefn)(void* data, int dataLen) );

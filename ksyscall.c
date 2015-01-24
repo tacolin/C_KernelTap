@@ -1,92 +1,53 @@
 //////////////////////////////////////////////////////////////////////////////
-//
 //      Headers
-//
 //////////////////////////////////////////////////////////////////////////////
 #include "ktunnel.h"
 
 //////////////////////////////////////////////////////////////////////////////
-//
 //      Functions
-//
 //////////////////////////////////////////////////////////////////////////////
 int my_read(struct file* fp, void *buf, int count)
 {
-    if (NULL == fp)
-    {
-        dprint("fp is null");
-        return -1;
-    }
-
-    if (NULL == fp->f_op)
-    {
-        dprint("fp ops is null");
-        return -1;
-    }
+    CHECK_IF(NULL == fp,       return -1, "fp is null");
+    CHECK_IF(NULL == fp->f_op, return -1, "fp ops is null");
 
     return fp->f_op->read(fp, buf, count, &(fp->f_pos));
 }
 
 int my_write(struct file* fp, const void *buf, int count)
 {
-    if (NULL == fp)
-    {
-        dprint("fp is null");
-        return -1;
-    }
-
-    if (NULL == fp->f_op)
-    {
-        dprint("fp ops is null");
-        return -1;
-    }
+    CHECK_IF(NULL == fp,       return -1, "fp is null");
+    CHECK_IF(NULL == fp->f_op, return -1, "fp ops is null");
 
     return fp->f_op->write(fp, buf, count, &(fp->f_pos));
 }
 
 long my_ioctl(struct file* fp, unsigned int cmd, unsigned long param)
 {
-    if (NULL == fp)
-    {
-        dprint("fp is null");
-        return -1;
-    }
-
-    if (NULL == fp->f_op)
-    {
-        dprint("fp ops is null");
-        return -1;
-    }
+    CHECK_IF(NULL == fp,       return -1, "fp is null");
+    CHECK_IF(NULL == fp->f_op, return -1, "fp ops is null");
 
     return fp->f_op->unlocked_ioctl(fp, cmd, param);
 }
 
 struct socket* my_socket(int family, int type, int protocol)
 {
+    int            retval;
     struct socket* socket = NULL;
     struct file*   fp     = NULL;
 
-    if (0 > sock_create(family, type, protocol, &socket))
-    {
-        dprint("sock create failed");
-        return NULL;
-    }
-
-    if (NULL == socket)
-    {
-        dprint("created socket is null");
-        return NULL;
-    }
+    retval = sock_create(family, type, protocol, &socket);
+    CHECK_IF(0 > retval,     goto err_return, "sock create failed");
+    CHECK_IF(NULL == socket, goto err_return, "sock is null");
 
     fp = sock_alloc_file(socket, 0, NULL);
-    if (NULL == fp)
-    {
-        dprint("socket alloc file failed");
-        sock_release(socket);
-        return NULL;
-    }
+    CHECK_IF(NULL == fp, goto err_return, "socket alloc file failed");
 
     return socket;
+
+err_return:
+    if (socket) { sock_release(socket); }
+    return NULL;
 }
 
 int my_inet_pton(int af, const char *src, void *dst)
@@ -108,11 +69,7 @@ int my_inet_pton(int af, const char *src, void *dst)
 
 struct file* my_open(char* filename, int flags)
 {
-    if (NULL == filename)
-    {
-        dprint("filename is null");
-        return NULL;
-    }
+    CHECK_IF(NULL == filename, return NULL, "file name is null");
 
     return filp_open(filename, flags, 0);
 }

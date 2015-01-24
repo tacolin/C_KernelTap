@@ -1,331 +1,178 @@
 //////////////////////////////////////////////////////////////////////////////
-//
 //      Headers
-//
 //////////////////////////////////////////////////////////////////////////////
 #include "ktunnel.h"
 
 //////////////////////////////////////////////////////////////////////////////
-//
-//      Type Definitions
-//
-//////////////////////////////////////////////////////////////////////////////
-struct my_ktap
-{
-    bool enable;
-    char ifname[IFNAMSIZ];
-    char ipaddr[IPADDR_SIZE];
-    char netmask[IPADDR_SIZE];
-
-    struct file*        file;
-    struct task_struct* processThread;
-    int                 interruptNum;
-
-    char txmode; // 'u' for udp, 'n' for netpoll
-
-    unsigned char buffer[BUFFER_SIZE];
-};
-
-
-//////////////////////////////////////////////////////////////////////////////
-//
 //      Global Variables
-//
 //////////////////////////////////////////////////////////////////////////////
-static struct my_ktap _ktap = {};
+static bool                _tapEnabled = false;
+static struct file*        _tapFile    = NULL;
+static struct task_struct* _readThread = NULL;
+
+static unsigned char _readBuffer[BUFFER_SIZE] = {0};
 
 //////////////////////////////////////////////////////////////////////////////
-//
 //      Static Functions
-//
 //////////////////////////////////////////////////////////////////////////////
 static struct file* _alloc(char* filename, char* ifname, int flags)
 {
-    struct ifreq ifr   = {};
-    struct file* tapfp = NULL;
-    long         ret   = 0;
+    struct ifreq ifr    = {};
+    struct file* tapfp  = NULL;
+    long         retval = 0;
 
-    if (NULL == filename)
-    {
-        dprint("filename is null");
-        return NULL;
-    }
-
-    if (NULL == ifname)
-    {
-        dprint("ifname is null");
-        return NULL;
-    }
+    CHECK_IF(NULL == filename, goto err_return, "filename is null");
+    CHECK_IF(NULL == ifname,   goto err_return, "ifname is null");
 
     tapfp = my_open(filename, O_RDWR);
-    if (NULL == tapfp)
-    {
-        dprint("my open failed");
-        return NULL;
-    }
+    CHECK_IF(NULL == tapfp, goto err_return, "my open failed");
 
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
     ifr.ifr_flags = flags;
 
-    ret = my_ioctl(tapfp, TUNSETIFF, (unsigned long)&ifr);
-    if (0 > ret)
-    {
-        dprint("my ioctl failed");
-        my_close(tapfp);
-        return NULL;
-    }
+    retval = my_ioctl(tapfp, TUNSETIFF, (unsigned long)&ifr);
+    CHECK_IF(0 > retval, goto err_return, "my ioctl failed");
 
     return tapfp;
+
+err_return:
+    if (tapfp) { my_close(tapfp); }
+    return NULL;
 }
 
 static int _setIpaddr(char* ifname, char* ipaddr)
 {
     struct ifreq   ifr    = {};
-    long           ret    = 0;
+    long           retval = 0;
     struct socket* socket = NULL;
 
-    if (NULL == ifname)
-    {
-        dprint("ifname is null");
-        goto _ERROR;
-    }
-
-    if (NULL == ipaddr)
-    {
-        dprint("ipaddr is null");
-        goto _ERROR;
-    }
+    CHECK_IF(NULL == ifname, goto err_return, "ifname is null");
+    CHECK_IF(NULL == ipaddr, goto err_return, "ipaddr is null");
 
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
     ifr.ifr_addr.sa_family = AF_INET;
 
-    ret = my_inet_pton(AF_INET, ipaddr, ifr.ifr_addr.sa_data+2);
-    if (0 > ret)
-    {
-        dprint("my inet pton failed");
-        goto _ERROR;
-    }
+    retval = my_inet_pton(AF_INET, ipaddr, ifr.ifr_addr.sa_data+2);
+    CHECK_IF(0 > retval, goto err_return, "my inet pton failed");
 
     socket = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (NULL == socket)
-    {
-        dprint("my socket failed");
-        goto _ERROR;
-    }
+    CHECK_IF(NULL == socket,       goto err_return, "my socket failed");
+    CHECK_IF(NULL == socket->file, goto err_return, "socket->file is null");
 
-    if (NULL == socket->file)
-    {
-        dprint("socket->file is null");
-        goto _ERROR;
-    }
-
-    ret = my_ioctl(socket->file, SIOCSIFADDR, (unsigned long)&ifr);
-    if (0 > ret)
-    {
-        dprint("my ioctl set failed");
-        goto _ERROR;
-    }
+    retval = my_ioctl(socket->file, SIOCSIFADDR, (unsigned long)&ifr);
+    CHECK_IF(0 > retval, goto err_return, "my ioctl set failed");
 
     sock_release(socket);
-
     return 0;
 
-_ERROR:
-    if (NULL != socket)
-    {
-        sock_release(socket);
-    }
+err_return:
+    if (socket) { sock_release(socket); }
     return -1;
 }
 
 static int _setMtuSize(char* ifname)
 {
     struct ifreq   ifr    = {};
-    long           ret    = 0;
+    long           retval = 0;
     struct socket* socket = NULL;
 
-    if (NULL == ifname)
-    {
-        dprint("ifname is null");
-        goto _ERROR;
-    }
+    CHECK_IF(NULL == ifname, goto err_return, "ifname is null");
 
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
     ifr.ifr_addr.sa_family = AF_INET;
 
     socket = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (NULL == socket)
-    {
-        dprint("my socket failed");
-        goto _ERROR;
-    }
+    CHECK_IF(NULL == socket, goto err_return, "my socket failed");
 
-    ret = my_ioctl(socket->file, SIOCGIFMTU, (unsigned long)&ifr);
-    if (0 > ret)
-    {
-        dprint("my ioctl get mtu size failed");
-        goto _ERROR;
-    }
+    retval = my_ioctl(socket->file, SIOCGIFMTU, (unsigned long)&ifr);
+    CHECK_IF(0 > retval, goto err_return, "my ioctl get mtu size failed");
 
-    if (TUNNEL_HDR_SIZE >= ifr.ifr_mtu)
-    {
-        dprint("mtu size = %d is too small to use tunnel", ifr.ifr_mtu);
-        goto _ERROR;
-    }
+    CHECK_IF(TUNNEL_HDR_SIZE >= ifr.ifr_mtu, goto err_return, "mtu size = %d is too small to use tunnel", ifr.ifr_mtu);
 
     ifr.ifr_mtu -= TUNNEL_HDR_SIZE;
 
-    ret = my_ioctl(socket->file, SIOCSIFMTU, (unsigned long)&ifr);
-    if (0 > ret)
-    {
-        dprint("my ioctl set mtu size failed");
-        goto _ERROR;
-    }
+    retval = my_ioctl(socket->file, SIOCSIFMTU, (unsigned long)&ifr);
+    CHECK_IF(0 > retval, goto err_return, "my ioctl set mtu size failed");
 
     sock_release(socket);
 
     return 0;
 
-_ERROR:
-    if (NULL != socket)
-    {
-        sock_release(socket);
-    }
+err_return:
+    if (socket) { sock_release(socket); }
     return -1;
 }
 
 static int _setNetmask(char* ifname, char* netmask)
 {
     struct ifreq   ifr    = {};
-    long           ret    = 0;
+    long           retval = 0;
     struct socket* socket = NULL;
 
-    if (NULL == ifname)
-    {
-        dprint("ifname is null");
-        goto _ERROR;
-    }
-
-    if (NULL == netmask)
-    {
-        dprint("netmask is null");
-        goto _ERROR;
-    }
+    CHECK_IF(NULL == ifname,  goto err_return, "ifname is null");
+    CHECK_IF(NULL == netmask, goto err_return, "netmask is null");
 
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
     ifr.ifr_addr.sa_family = AF_INET;
 
-    ret = my_inet_pton(AF_INET, netmask, ifr.ifr_addr.sa_data+2);
-    if (0 > ret)
-    {
-        dprint("my inet pton failed");
-        goto _ERROR;
-    }
+    retval = my_inet_pton(AF_INET, netmask, ifr.ifr_addr.sa_data+2);
+    CHECK_IF(0 > retval, goto err_return, "my inet pton failed");
 
     socket = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (NULL == socket)
-    {
-        dprint("my socket failed");
-        goto _ERROR;
-    }
+    CHECK_IF(NULL == socket,       goto err_return, "my socket failed");
+    CHECK_IF(NULL == socket->file, goto err_return, "socket->file is null");
 
-    if (NULL == socket->file)
-    {
-        dprint("socket->file is null");
-        goto _ERROR;
-    }
-
-    ret = my_ioctl(socket->file, SIOCSIFNETMASK, (unsigned long)&ifr);
-    if (0> ret)
-    {
-        dprint("my ioctl failed");
-        goto _ERROR;
-    }
+    retval = my_ioctl(socket->file, SIOCSIFNETMASK, (unsigned long)&ifr);
+    CHECK_IF(0> retval, goto err_return, "my ioctl failed");
 
     sock_release(socket);
     return 0;
 
-_ERROR:
-    if (NULL != socket)
-    {
-        sock_release(socket);
-    }
+err_return:
+    if (socket) { sock_release(socket); }
     return -1;
 }
 
 static int _enableInterface(char* ifname)
 {
     struct ifreq   ifr    = {};
-    long           ret    = 0;
+    long           retval = 0;
     struct socket* socket = NULL;
 
-    if (NULL == ifname)
-    {
-        dprint("ifname is null");
-        goto _ERROR;
-    }
+    CHECK_IF(NULL == ifname, goto err_return, "ifname is null");
 
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
     ifr.ifr_addr.sa_family = AF_INET;
 
     socket = my_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (NULL == socket)
-    {
-        dprint("my socket failed");
-        goto _ERROR;
-    }
+    CHECK_IF(NULL == socket,       goto err_return, "my socket failed");
+    CHECK_IF(NULL == socket->file, goto err_return, "socket->file is null");
 
-    if (NULL == socket->file)
-    {
-        dprint("socket->file is null");
-        goto _ERROR;
-    }
-
-    ret = my_ioctl(socket->file, SIOCGIFFLAGS, (unsigned long)&ifr);
-    if (0 > ret)
-    {
-        dprint("my ioctl get flags failed");
-        goto _ERROR;
-    }
+    retval = my_ioctl(socket->file, SIOCGIFFLAGS, (unsigned long)&ifr);
+    CHECK_IF(0 > retval, goto err_return, "my ioctl get flags failed");
 
     ifr.ifr_flags |= ( IFF_UP | IFF_RUNNING );
 
-    ret = my_ioctl(socket->file, SIOCSIFFLAGS, (unsigned long)&ifr);
-    if (0 > ret)
-    {
-        dprint("my ioctl set flags failed");
-        goto _ERROR;
-    }
+    retval = my_ioctl(socket->file, SIOCSIFFLAGS, (unsigned long)&ifr);
+    CHECK_IF(0 > retval, goto err_return, "my ioctl set flags failed");
 
     sock_release(socket);
 
     return 0;
 
-_ERROR:
-    if (NULL != socket)
-    {
-        sock_release(socket);
-    }
+err_return:
+    if (socket) { sock_release(socket); }
     return -1;
 }
 
-static bool _isWantedData(void* data, int dataLen)
+static bool _isTapWantedData(void* data, int dataLen)
 {
     struct ethhdr* ethhdr  = NULL;
     struct iphdr*  iphdr   = NULL;
     u16            ethtype = 0;
 
-    if (NULL == data)
-    {
-        dprint("data is null");
-        return false;
-    }
-
-    if (ETH_HLEN >= dataLen)
-    {
-        dprint("dataLen = %d is too short", dataLen);
-        return false;
-    }
+    CHECK_IF(NULL == data, return false, "data is null");
+    CHECK_IF(ETH_HLEN >= dataLen, return false, "dataLen = %d is too short", dataLen);
 
     ethhdr  = (struct ethhdr*)data;
     ethtype = ntohs(ethhdr->h_proto);
@@ -354,282 +201,110 @@ static bool _isWantedData(void* data, int dataLen)
     return false;
 }
 
-static int _processTapReadData(void *arg)
+static int _tapRead(void *arg)
 {
-    struct my_ktap *ktap = (struct my_ktap*)arg;
-    int  readLen         = 0;
-    int  sendLen         = 0;
+    int  readLen = 0;
+    int  sendLen = 0;
 
-    if (NULL == arg)
-    {
-        dprint("arg is null");
-        return 0;
-    }
-
-    allow_signal(ktap->interruptNum);
+    allow_signal(SIGINT);
 
     while (!kthread_should_stop())
     {
-        readLen = my_read(ktap->file, ktap->buffer, BUFFER_SIZE);
-        if (0 >= readLen)
-        {
-            dprint("readLen = %d <= 0, failed", readLen);
-            break;
-        }
+        readLen = my_read(_tapFile, _readBuffer, BUFFER_SIZE);
+        CHECK_IF(0 >= readLen, goto read_over, "readLen = %d failed", readLen);
 
-        if (_isWantedData(ktap->buffer, readLen))
+        if (_isTapWantedData(_readBuffer, readLen))
         {
-            if ('n' == ktap->txmode)
-            {
-                struct netpoll np = {};
-                if (knetpoll_getInfo(g_dstRealip, &np))
-                {
-                    sendLen = knetpoll_send(&np, ktap->buffer, readLen);
-                }
-                else
-                {
-                    // dprint("get no netpoll info");
-                }
-            }
-            else
-            {
-                sendLen = kudp_send(ktap->buffer, readLen);
-            }
-
-            if (0 >= sendLen)
-            {
-                // dprint("send failed, sendLen = %d", sendLen);
-            }
+            sendLen = ktunnel_send(_readBuffer, readLen);
+            // CHECK_IF(0 >= sendLen, goto read_over, "sendLen = %d failed", sendLen);
         }
     }
 
+read_over:
     dprint("over");
     return 0;
 }
 
-static int _initTapProcessThread(struct my_ktap *ktap,
-                                 my_threadFn fn,
-                                 int irqNum)
-{
-    int errRet = 0;
-
-    if (NULL == ktap)
-    {
-        dprint("ktap is null");
-        return -1;
-    }
-
-    if (NULL == fn)
-    {
-        dprint("thread fn is null");
-        return -1;
-    }
-
-    ktap->processThread = kthread_create(fn, ktap, "tap process thread");
-    if (IS_ERR(ktap->processThread))
-    {
-        dprint("kthread create failed");
-        errRet = PTR_ERR(ktap->processThread);
-        return -1;
-    }
-
-    memset(ktap->buffer, 0, BUFFER_SIZE);
-    ktap->interruptNum = irqNum;
-
-    return 0;
-}
-
-static int _uninitTapProcessThread(struct my_ktap* ktap)
-{
-    return 0;
-}
-
-static int _startTapProcessThread(struct my_ktap *ktap)
-{
-    if (NULL == ktap)
-    {
-        dprint("ktap is null");
-        return -1;
-    }
-
-    if (NULL == ktap->processThread)
-    {
-        dprint("process thread is not initialized");
-        return -1;
-    }
-
-    // start the thread.
-    wake_up_process(ktap->processThread);
-    return 0;
-}
-
-static int _stopTapProcessThread(struct my_ktap *ktap)
-{
-    if (NULL == ktap)
-    {
-        dprint("ktap is null");
-        return -1;
-    }
-
-    if (NULL == ktap->processThread)
-    {
-        dprint("process thread is not initialized");
-        return -1;
-    }
-
-    kill_pid(find_vpid(ktap->processThread->pid), ktap->interruptNum, 1);
-    kthread_stop(ktap->processThread);
-    ktap->processThread = NULL;
-
-    return 0;
-}
-
 //////////////////////////////////////////////////////////////////////////////
-//
 //      Functions
-//
 //////////////////////////////////////////////////////////////////////////////
-int ktap_write(void* data, int dataLen)
+int ktunnel_writeTap(void* data, int dataLen)
 {
-    if (NULL == _ktap.file)
-    {
-        dprint("ktap is not initialized");
-        return -1;
-    }
+    CHECK_IF(NULL == _tapFile, return -1, "tap file is null");
+    CHECK_IF(NULL == data,     return -1, "data is null");
+    CHECK_IF(0 == dataLen,     return -1, "dataLen = 0");
 
-    if (NULL == data)
-    {
-        dprint("data is null");
-        return -1;
-    }
-
-    if (0 == dataLen)
-    {
-        dprint("dataLen = 0");
-        return -1;
-    }
-
-    return my_write(_ktap.file, data, dataLen);
+    return my_write(_tapFile, data, dataLen);
 }
 
-int ktap_init(char* ifname, char* ipaddr, char* netmask, char* txmode)
+int ktunnel_initTap(char* ifname, char* ipaddr, char* netmask)
 {
-    int ret = 0;
+    int retval = 0;
 
-    if (NULL == ifname)
+    CHECK_IF(NULL == ifname, goto err_return, "ifname is null");
+
+    _tapFile = _alloc(TAP_FILE_PATH, ifname, IFF_TAP | IFF_NO_PI);
+    CHECK_IF(NULL == _tapFile, goto err_return, "alloc tap fp failed");
+
+    if (ipaddr)
     {
-        dprint("ifname is null");
-        goto _ERROR;
+        retval = _setIpaddr(ifname, ipaddr);
+        CHECK_IF(0 > retval, goto err_return, "tap set ip failed");
     }
 
-    strncpy(_ktap.ifname,  ifname,  IFNAMSIZ);
-
-    if (NULL == txmode)
+    if (netmask)
     {
-        dprint("txmode is null");
-        goto _ERROR;
+        retval = _setNetmask(ifname, netmask);
+        CHECK_IF(0 > retval, goto err_return, "tap set netmask failed");
     }
 
-    if (0 == strcmp(txmode, "udp"))
+    retval = _setMtuSize(ifname);
+    CHECK_IF(0 > retval, goto err_return, "tap set mtu size failed");
+
+    retval = _enableInterface(ifname);
+    CHECK_IF(0 > retval, goto err_return, "tap enable interface failed");
+
+    _readThread = kthread_create(_tapRead, NULL, "TAP READ Thread");
+    if (IS_ERR(_readThread))
     {
-        _ktap.txmode = 'u';
-    }
-    else if (0 == strcmp(txmode, "netpoll"))
-    {
-        _ktap.txmode = 'n';
-    }
-    else
-    {
-        dprint("txmode is invalid = %s", txmode);
-        goto _ERROR;
+        derror("kthread create failed");
+        retval = PTR_ERR(_readThread);
+        goto err_return;
     }
 
-    _ktap.file = _alloc(TAP_FILE_PATH, ifname, IFF_TAP | IFF_NO_PI);
-    if (NULL == _ktap.file)
-    {
-        dprint("alloc tap fp failed");
-        goto _ERROR;
-    }
+    wake_up_process(_readThread);
 
-    if (NULL != ipaddr)
-    {
-        strncpy(_ktap.ipaddr,  ipaddr,  IPADDR_SIZE);
-        if (0 > _setIpaddr(ifname, ipaddr))
-        {
-            dprint("tap set ip failed");
-            goto _ERROR;
-        }
-    }
+    _tapEnabled = true;
 
-    if (NULL != netmask)
-    {
-        strncpy(_ktap.netmask, netmask, IPADDR_SIZE);
-        if (0 > _setNetmask(ifname, netmask))
-        {
-            dprint("tap set netmask failed");
-            goto _ERROR;
-        }
-    }
-
-    if (0 > _setMtuSize(ifname))
-    {
-        dprint("set mtu size failed");
-        goto _ERROR;
-    }
-
-    ret = _enableInterface(ifname);
-    if (0 > ret)
-    {
-        dprint("enable interface failed");
-        goto _ERROR;
-    }
-
-    ret = _initTapProcessThread(&_ktap, _processTapReadData, SIGINT);
-    if (0 > ret)
-    {
-        dprint("init process thread failed");
-        goto _ERROR;
-    }
-
-    ret = _startTapProcessThread(&_ktap);
-    if (0 > ret)
-    {
-        dprint("start process thread failed");
-        goto _ERROR;
-    }
-
-    _ktap.enable = true;
-
-    dprint("ifname = %s, ipaddr = %s", ifname, ipaddr);
-    dprint("ok");
     return 0;
 
-_ERROR:
-    _ktap.enable = false;
-    if (NULL == _ktap.file)
+err_return:
+    if (_tapFile)
     {
-        my_close(_ktap.file);
+        my_close(_tapFile);
+        _tapFile = NULL;
     }
     return -1;
 }
 
-void ktap_uninit(void)
+void ktunnel_uninitTap(void)
 {
-    if (false == _ktap.enable)
+    if (!_tapEnabled) { return; }
+
+    if (_readThread)
     {
-        dprint("ktap is not initialized");
-        return;
+        kill_pid(find_vpid(_readThread->pid), SIGINT, 1);
+        kthread_stop(_readThread);
     }
 
-    _stopTapProcessThread(&_ktap);
+    if (_tapFile)
+    {
+        my_close(_tapFile);
+    }
 
-    _uninitTapProcessThread(&_ktap);
+    _tapFile    = NULL;
+    _readThread = NULL;
+    _tapEnabled = false;
 
-    my_close(_ktap.file);
-    _ktap.file = NULL;
-
-    _ktap.enable = false;
-
-    dprint("ok");
     return;
 }
