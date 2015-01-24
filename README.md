@@ -1,5 +1,4 @@
-Kernel Space TAP Tunnel Example
-===============================
+# Kernel Space TAP Tunnel Example
 
 This is an example of TAP tunnel in kernel space.
 
@@ -12,35 +11,26 @@ Only the following packets can be passed in the TAP tunnel:
 
 The Tunnel is built in UDP with source port 50000 = destination port
 
+## File Descriptions
 
+| File                  | Descriptions                                                          |
+|-----------------------|-----------------------------------------------------------------------|
+| kmain.c               | kernel init / exit functions.                                         |
+| ksyscall.c            | re-write some system calls in kernel space.                           |
+| ktap.c                | creating and using tap tunnel in kernel space.                        |
+| ktx.c                 | tunnel tx part (udp or netpoll).                                      |
+| ktunnel.h             | linux heraders, defined values, macros, type / function declarations. |
+| krx.c                 | tunnel rx part (udp or net filter).                                   |
+| ktuunel_wireshark.lua | simple wireshark dissector for this project.                          |
 
-File Descriptions
------------------
-
-| File        | Descriptions                                             |
-|-------------|----------------------------------------------------------|
-| kmain.c     | kernel init / exit functions.                            |
-| ksyscall.c  | re-write some system calls in kernel space.              |
-| ktap.c      | creating and using tap tunnel in kernel space.           |
-| ktx.c       | tunnel tx part (udp or netpoll).                         |
-| ktunnel.h   | linux heraders, defined values, macros, type / function declarations. |
-| krx.c       | tunnel rx part (udp or net filter).                      |
-| ktuunel_wireshark.lua | simple wireshark dissector for this project.   |
-
-
-
-Verification Environment
-------------------------
+## Verification Environment
 
 This project works in the following linux distributions:
 
 * Ubuntu 14.04 i386 and amd64 - Kernel version 3.13.0
 * Mint 17 i386 and amd64      - Kernel version 3.13.0
 
-
-
-How to test?
-------------
+## How to test?
 
 Prepare 2 computers : COMPUTER A and COMPUTER B
 
@@ -50,32 +40,79 @@ Prepare 2 computers : COMPUTER A and COMPUTER B
 Build your proejct, and insert kernel module in COMPUTER A:
 
     $ cd kernel_tap/
-
     $ make
-
-    $ sudo insmod ktunnel.ko g_dst="192.168.1.2" g_ip="10.10.10.1" \
-      g_mask="255.255.255.0" g_port=50000
-
-    $ ifconfig
+    $ sudo insmod ktunnel.ko g_dst=192.168.1.2 g_ip=10.10.10.1 g_mask=255.255.255.0 g_port=50000
 
 You will see the new network interface "tap01" with ipaddr "10.10.10.1"
 
 Do it again in COMPUTER B:
 
-    $ sudo insmod ktunnel.ko g_dst="192.168.1.1" g_ip="10.10.10.2" \
-      g_mask="255.255.255.0" g_port=50000
+    $ sudo insmod ktunnel.ko g_dst=192.168.1.1 g_ip=10.10.10.2 g_mask=255.255.255.0 g_port=50000
 
 you will see the new network interface "tap01" with ipaddr "10.10.10.2"
 
-In COMPUTER A, do "$ ping 10.10.10.2", and you will see ping success.
+In COMPUTER A
+
+    $ ping 10.10.10.2"
 
 If you check packets in wireshark, you will see the ARP and ICMP packets encapsulated in the UDP Tunnel.
 
 
+## Tunnel Data Transmission Flow
 
+There are 2 Tx modes and 2 Rx modes in this repository.
 
-tx: udp, rx: udp
-----------------
+You can use various combinations by your wish.
+
+### Tx
+
+    User Space Program (e.g. PING)
+    -> LINUX TCP/IP Protocol Stack
+    -> TAP net device ndo_start_xmit() 
+       put data into TAP's queue, wake up poll of this queue
+
+#### UDP Tx
+
+Default tx mode is UDP. Or you could specify the txmode when inserting module.
+
+$ sudo insmod ktunnel.ko ...... g_txmode=udp
+
+    Kernel Tap Read Thread : _readThread
+    -> read data from TAP's queue : _tapRead()
+       send data by UDP socket
+
+#### Netpoll Tx
+
+$ sudo insmod ktunnel.ko ..... g_txmode=netpoll
+    
+    Kernel Tap Read Thread : _readThread
+    -> read data from TAP's queue : _tapRead()
+       get routing table, get arp table information, send data by netpoll_send_udp()
+
+### Rx
+
+#### UDP Rx
+
+Default tx mode is UDP. Or you could specify the rxmode when inserting module.
+
+$ sudo insmod ktunnel.ko ...... g_rxmode=udp
+   
+    Kernel UDP Recv Thread : _rxThread
+    -> recv data from UDP socket : _udpRecv()
+       write data to TAP's queue
+    -> LINUX TCP/IP Protocol Stack
+    -> User Space Program (e.g. PING)
+
+#### Net Filter Rx
+   
+$ sudo insmod ktunnel.ko .... g_rxmode=filter
+ 
+    -> Netfilter hook function : _netfilterRecv()
+       write data to TAP's queue
+    -> LINUX TCP/IP Protocol stack
+    -> User Space Program (e.g. PING)
+
+### Block Diagram (TX:UDP, RX:UDP)
 
              COMPUTER A                           COMPUTER B
         192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
@@ -94,117 +131,7 @@ tx: udp, rx: udp
              |  KUDP  |--------------------------|  KUDP  |
              +--------+       send / recv        +--------+
 
-
-
-
-tx: netpoll, rx: udp
---------------------
-
-If you insert module with different module parameter 'txmode', there will be some different with the above structure.
-
-    $ sudo insmod ktunnel.ko g_dst="192.168.1.1" g_ip="10.10.10.2" \
-      g_mask="255.255.255.0" g_port=50000 g_txmode="netpoll"
-
-Netpoll tx mode will decrease a little CPU usage in sender COMPUTER.
-
-                 COMPUTER A                           COMPUTER B
-            192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
-
-                  process                              process
-                     |                                    |
-                     |                USER                |
-            --------------------                --------------------
-                     |               KERNEL               |
-                 +--------+                          +--------+
-          +----->|  KTAP  |                          |  KTAP  |--->--+
-          |      +--------+                          +--------+      |
-          |          | read                               ^  write   |
-          ^          |                                    |          v
-          |          v                                    |          |
-    write |     +----------+                         +--------+      | read
-          ^     | KNETPOLL |---->------>------>------|  KUDP  |      v
-          |     +----------+  send              recv +--------+      |
-          |                                                          |
-          |      +--------+                         +----------+     |
-          +--<---|  KUDP  |-----<------<------<-----| KNETPOLL |<----+
-                 +--------+ recv               send +----------+
-
-
-
-
-
-tx: udp, rx: netfilter
-----------------------
-
-If you insert module with different module parameter 'rxmode', there will be some different with the above structures.
-
-    $ sudo insmod ktunnel.ko g_dst="192.168.1.1" g_ip="10.10.10.2" \
-      g_mask="255.255.255.0" g_port=50000 g_rxmode="filter"
-
-Netfilter rx mode will decrease a little CPU usage in receiver COMPUTER.
-
-                 COMPUTER A                           COMPUTER B
-            192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
-
-                  process                              process
-                     |                                    |
-                     |                USER                |
-            --------------------                --------------------
-                     |               KERNEL               |
-                 +--------+                          +--------+
-          +----->|  KTAP  |                          |  KTAP  |--->--+
-          |      +--------+                          +--------+      |
-          |          | read                               ^  write   |
-          ^          |                                    |          v
-          |          v                                    |          |
-    write |      +--------+                          +---------+     | read
-          ^      |  KUDP  |----->------>------>------| KFILTER |     v
-          |      +--------+ send           netfilter +---------+     |
-          |                                                          |
-          |     +---------+                          +--------+      |
-          +--<--| KFILTER |-----<------<------<------|  KUDP  |<-----+
-                +---------+ netfilter           send +--------+
-
-
-tx: netpoll, rx: netfilter
---------------------------
-
-If you use netpoll tx + netfilter rx,
-
-    $ sudo insmod ktunnel.ko g_dst="192.168.1.1" g_ip="10.10.10.2" \
-      g_mask="255.255.255.0" g_port=50000 \
-      g_txmode="netpoll" g_rxmode="filter"
-
-the structure will becomes:
-
-                 COMPUTER A                           COMPUTER B
-            192.186.1.1(10.10.10.1)              192.168.1.2(10.10.10.2)
-
-                  process                              process
-                     |                                    |
-                     |                USER                |
-            --------------------                --------------------
-                     |               KERNEL               |
-                 +--------+                          +--------+
-          +----->|  KTAP  |                          |  KTAP  |--->--+
-          |      +--------+                          +--------+      |
-          |          | read                               ^  write   |
-          ^          |                                    |          v
-          |          v                                    |          |
-    write |     +----------+                         +---------+     | read
-          ^     | KNETPOLL |----->----->------>------| KFILTER |     v
-          |     +----------+ send          netfilter +---------+     |
-          |                                                          |
-          |     +---------+                         +----------+     |
-          +--<--| KFILTER |-----<------<------<-----| KNETPOLL |<----+
-                +---------+ netfilter          send +----------+
-
-
-
-
-
-How to use wireshark dissector?
--------------------------------
+## How to use wireshark dissector?
 
 Check wireshark is installed in your computer and works.
 
@@ -228,11 +155,7 @@ The simple dissector will works.
 
 You could use "ktunnel" as the keyword to filter packets.
 
-
-
-
-References
-----------
+## References
 
 1.[Example of TUN in User Space](http://neokentblog.blogspot.tw/2014/05/linux-virtual-interface-tuntap.html)
 
